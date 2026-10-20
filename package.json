@@ -21,6 +21,7 @@
   },
   "homepage": "https://github.com/bhb1011-creator/frutigeraro-chillroom#readme",
   "dependencies": {
+    "@dgreenheck/ez-tree": "^1.1.0",
     "three": "^0.170.0"
   },
   "devDependencies": {

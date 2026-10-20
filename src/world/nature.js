@@ -1,100 +1,83 @@
-import * as THREE from 'three';
-import { createRng } from './noise.js';
-import { materials as M } from './materials.js';
+import { createRng, fbm } from './noise.js';
 import { heightAt, distanceToPath, distanceToCity, distanceToLake } from './terrain.js';
 import { CITY, LAKE } from './layout.js';
+import { MEADOW_SPECIES } from './trees.js';
 
-function freeSpot(x, z, { pathGap = 4, cityGap = 6 } = {}) {
+const ECO_PODS = [
+  [-15, 42],
+  [16, 32],
+  [17, 8],
+  [22, 58],
+];
+
+function free(x, z, { pathGap = 5, cityGap = 16 } = {}) {
   const h = heightAt(x, z);
-  if (h < 0.9 || h > 34) return null;
+  if (h < 1.0 || h > 70) return null;
   if (distanceToPath(x, z) < pathGap) return null;
   if (distanceToCity(x, z) < CITY.r + cityGap) return null;
-  if (Math.hypot(x, z - 58) < 7) return null;
+  if (distanceToLake(x, z) < LAKE.r * 1.08) return null;
+  if (Math.hypot(x, z - 62) < 14) return null;
+  if (ECO_PODS.some(([px, pz]) => Math.hypot(x - px, z - pz) < 8)) return null;
   return h;
 }
 
-// Round, glossy "lollipop" trees: two instanced meshes keep this cheap.
-export function createTrees(seed = 21) {
+// Fills the TreeField: groves and single trees in the meadow, bushes on the shores,
+// and large low-detail forests on the hills towards the horizon.
+export function placeTrees(field, seed = 21) {
   const rng = createRng(seed);
-  const count = 420;
-  const trunkGeo = new THREE.CylinderGeometry(0.22, 0.38, 1, 8);
-  trunkGeo.translate(0, 0.5, 0);
-  const crownGeo = new THREE.SphereGeometry(1, 20, 14);
-  const trunks = new THREE.InstancedMesh(trunkGeo, M.trunk, count);
-  const crowns = new THREE.InstancedMesh(crownGeo, M.leaf.clone(), count * 2);
-  crowns.material.color.set(0xffffff);
-  const palette = [0x46c43a, 0x6fd93c, 0x9be84a, 0x34b04a, 0x7ad35e].map((c) => new THREE.Color(c));
-  const m = new THREE.Matrix4();
-  const q = new THREE.Quaternion();
-  const s = new THREE.Vector3();
-  const p = new THREE.Vector3();
-  let t = 0;
-  let c = 0;
-  for (let i = 0; i < count * 6 && t < count; i++) {
-    // Mix of clustered groves and scattered single trees.
-    const grove = rng() < 0.6;
-    const r = grove ? 30 + rng() * 170 : 20 + rng() * 220;
-    const a = rng() * Math.PI * 2;
-    const x = Math.cos(a) * r + (grove ? Math.sin(a * 5) * 25 : 0);
-    const z = Math.sin(a) * r;
-    const h = freeSpot(x, z);
-    if (h === null) continue;
-    if (distanceToLake(x, z) < LAKE.r * 1.05) continue;
-    const height = 2.5 + rng() * 4;
-    p.set(x, h - 0.1, z);
-    s.set(1, height, 1);
-    m.compose(p, q.identity(), s);
-    trunks.setMatrixAt(t++, m);
-    const crownR = height * (0.38 + rng() * 0.12);
-    const color = palette[Math.floor(rng() * palette.length)];
-    p.set(x, h + height + crownR * 0.25, z);
-    s.set(crownR, crownR * 1.05, crownR);
-    m.compose(p, q, s);
-    crowns.setMatrixAt(c, m);
-    crowns.setColorAt(c++, color);
-    if (rng() < 0.45) {
-      const r2 = crownR * 0.65;
-      p.set(x + (rng() - 0.5) * crownR, h + height + crownR * 0.9, z + (rng() - 0.5) * crownR);
-      s.set(r2, r2, r2);
-      m.compose(p, q, s);
-      crowns.setMatrixAt(c, m);
-      crowns.setColorAt(c++, palette[(palette.indexOf(color) + 1) % palette.length]);
-    }
-  }
-  trunks.count = t;
-  crowns.count = c;
-  for (const im of [trunks, crowns]) {
-    im.castShadow = true;
-    im.receiveShadow = true;
-  }
-  const group = new THREE.Group();
-  group.name = 'trees';
-  group.add(trunks, crowns);
-  return group;
-}
+  const pick = () => MEADOW_SPECIES[Math.floor(rng() * MEADOW_SPECIES.length)];
 
-// Little flower heads sprinkled through the meadow.
-export function createFlowers(seed = 33) {
-  const rng = createRng(seed);
-  const count = 5000;
-  const geo = new THREE.SphereGeometry(0.12, 8, 6);
-  const mat = new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.3, clearcoat: 1 });
-  const mesh = new THREE.InstancedMesh(geo, mat, count);
-  const colors = [0xffffff, 0xffe14d, 0xff7ab8, 0x8fd8ff, 0xffffff].map((c) => new THREE.Color(c));
-  const m = new THREE.Matrix4();
-  let n = 0;
-  for (let i = 0; i < count * 4 && n < count; i++) {
-    const r = 120 * Math.pow(rng(), 0.7);
+  // Groves: a few clusters plus scattered singles across the near landscape.
+  const groves = [];
+  for (let i = 0; i < 26; i++) {
     const a = rng() * Math.PI * 2;
-    const x = Math.cos(a) * r;
-    const z = Math.sin(a) * r + 15;
-    const h = freeSpot(x, z, { pathGap: 1.8, cityGap: -2 });
-    if (h === null) continue;
-    m.makeTranslation(x, h + 0.55 + rng() * 0.35, z);
-    mesh.setMatrixAt(n, m);
-    mesh.setColorAt(n++, colors[Math.floor(rng() * colors.length)]);
+    const r = 45 + rng() * 280;
+    groves.push([Math.cos(a) * r, Math.sin(a) * r, 8 + rng() * 22]);
   }
-  mesh.count = n;
-  mesh.name = 'flowers';
-  return mesh;
+  let placed = 0;
+  for (let i = 0; i < 6000 && placed < 420; i++) {
+    let x;
+    let z;
+    if (rng() < 0.65) {
+      const [gx, gz, gr] = groves[Math.floor(rng() * groves.length)];
+      const a = rng() * Math.PI * 2;
+      const r = gr * Math.sqrt(rng());
+      x = gx + Math.cos(a) * r;
+      z = gz + Math.sin(a) * r;
+    } else {
+      const a = rng() * Math.PI * 2;
+      const r = 25 + rng() * 330;
+      x = Math.cos(a) * r;
+      z = Math.sin(a) * r;
+    }
+    const h = free(x, z);
+    if (h === null) continue;
+    field.add(pick(), x, h - 0.2, z, { scale: 0.8 + rng() * 0.5, rotation: rng() * Math.PI * 2 });
+    placed++;
+  }
+
+  // Bushes along the lake shore and the path edges.
+  for (let i = 0; i < 400; i++) {
+    const a = rng() * Math.PI * 2;
+    const r = LAKE.r * (1.1 + rng() * 0.35);
+    const x = LAKE.x + Math.cos(a) * r;
+    const z = LAKE.z + Math.sin(a) * r;
+    const h = free(x, z, { pathGap: 3 });
+    if (h === null || rng() < 0.6) continue;
+    field.add(rng() < 0.25 ? 'bush' : 'bush2', x, h - 0.1, z, { scale: 0.7 + rng() * 0.6, rotation: rng() * 6.28 });
+  }
+
+  // Distant forests: big noise-shaped patches on the hills, always drawn at low detail.
+  let far = 0;
+  for (let i = 0; i < 40000 && far < 3200; i++) {
+    const a = rng() * Math.PI * 2;
+    const r = 330 + Math.pow(rng(), 0.7) * 1900;
+    const x = Math.cos(a) * r;
+    const z = Math.sin(a) * r;
+    if (fbm(x * 0.004 + 50, z * 0.004 - 20, 3) < 0.52) continue;
+    const h = free(x, z);
+    if (h === null) continue;
+    field.add(rng() < 0.3 ? 'pine' : pick(), x, h - 0.3, z, { scale: 1 + rng() * 0.7, rotation: rng() * 6.28, lowOnly: true });
+    far++;
+  }
 }

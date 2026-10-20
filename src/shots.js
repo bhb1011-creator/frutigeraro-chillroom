@@ -4,41 +4,63 @@ import { LAKE, CITY } from './world/layout.js';
 
 const v = (x, y, z) => new THREE.Vector3(x, y, z);
 const ground = (x, z, up) => v(x, Math.max(heightAt(x, z), 0) + up, z);
+// Plaza-local coordinates → world (plaza floor is at CITY.height).
+const c = (x, y, z) => v(CITY.x + x, CITY.height + y, CITY.z + z);
 
 // Fixed camera positions for screenshots, opened with ?shot=<name>.
 export const SHOTS = {
   ueberblick: () => ({
-    position: v(-110, 62, 125),
-    target: v(10, 2, -35),
+    position: v(-190, 95, 170),
+    target: v(20, 5, -70),
     fov: 50,
   }),
-  spielansicht: (c) => {
-    const p = c.position;
-    const back = v(Math.sin(c.rotation.y), 0, Math.cos(c.rotation.y));
+  spielansicht: (ch) => {
+    const p = ch.position;
+    const back = v(Math.sin(ch.rotation.y), 0, Math.cos(ch.rotation.y));
     return {
-      position: p.clone().addScaledVector(back, -6.5).add(v(1.6, 2.6, 0)),
-      target: p.clone().addScaledVector(back, 12).add(v(0, 2.5, 0)),
+      position: p.clone().addScaledVector(back, -4.2).add(v(1.0, 2.1, 0)),
+      target: p.clone().addScaledVector(back, 10).add(v(0, 1.8, 0)),
       fov: 60,
     };
   },
-  figur: (c) => {
-    const p = c.position;
-    const fwd = v(Math.sin(c.rotation.y), 0, Math.cos(c.rotation.y));
+  figur: (ch) => {
+    const p = ch.position;
+    const fwd = v(Math.sin(ch.rotation.y), 0, Math.cos(ch.rotation.y));
     const side = v(fwd.z, 0, -fwd.x);
     return {
-      position: p.clone().addScaledVector(fwd, 3.6).addScaledVector(side, 1.6).add(v(0, 1.5, 0)),
-      target: p.clone().add(v(0, 1.25, 0)),
+      position: p.clone().addScaledVector(fwd, 2.6).addScaledVector(side, 0.9).add(v(0, 1.35, 0)),
+      target: p.clone().add(v(0, 1.0, 0)),
       fov: 45,
     };
   },
+  boden: () => ({
+    position: ground(-14, 56, 0.45),
+    target: ground(-30, 40, 0.8),
+    fov: 60,
+  }),
   see: () => ({
-    position: v(LAKE.x - 22, 5, LAKE.z + 22),
-    target: v(LAKE.x + 40, 10, LAKE.z - 40),
+    position: v(LAKE.x - 26, 5, LAKE.z + 26),
+    target: v(LAKE.x + 50, 14, LAKE.z - 60),
     fov: 62,
   }),
   stadt: () => ({
-    position: v(CITY.x + 6, CITY.height + 3.2, CITY.z + 26),
-    target: v(CITY.x - 4, CITY.height + 17, CITY.z - 20),
+    position: c(-3, 2.4, 50),
+    target: c(0, 14, -20),
     fov: 68,
+  }),
+  platz: () => ({
+    position: c(24, 30, 36),
+    target: c(-6, 6, -16),
+    fov: 60,
+  }),
+  lobby: () => ({
+    position: c(-2.5, 1.7, -36.2),
+    target: c(2.5, 2.4, -46),
+    fov: 72,
+  }),
+  stock1: () => ({
+    position: c(4, 6.9, -37),
+    target: c(-4, 6.4, -46),
+    fov: 72,
   }),
 };
