@@ -1,0 +1,31 @@
+{
+  "name": "frutigeraero-chillroom",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "vite",
+    "build": "vite build",
+    "screenshots": "node scripts/screenshots.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bhb1011-creator/frutigeraro-chillroom.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/bhb1011-creator/frutigeraro-chillroom/issues"
+  },
+  "homepage": "https://github.com/bhb1011-creator/frutigeraro-chillroom#readme",
+  "dependencies": {
+    "three": "^0.170.0"
+  },
+  "devDependencies": {
+    "playwright": "^1.56.1",
+    "vite": "^5.4.10"
+  },
+  "type": "module"
+}
