@@ -48,6 +48,23 @@ export const SHOTS = {
     target: c(0, 32, -30),
     fov: 72,
   }),
+  arenaTurm: () => {
+    const s = TOWER_SITES.arena;
+    return { position: ground(s.x - 38, s.z + 70, 2.2), target: v(s.x, CLUSTER_Y + 48, s.z), fov: 62 };
+  },
+  arenaDach: () => {
+    const s = TOWER_SITES.arena;
+    return { position: v(s.x + 14, CLUSTER_Y + 100, s.z + 12), target: v(s.x, CLUSTER_Y + 91, s.z), fov: 60 };
+  },
+  arenaLobby: () => {
+    const s = TOWER_SITES.arena;
+    const d = v(SPAWN.x - s.x, 0, SPAWN.z - s.z).normalize();
+    return {
+      position: v(s.x + d.x * 10.2, CLUSTER_Y + 1.8, s.z + d.z * 10.2),
+      target: v(s.x + d.x * 5, CLUSTER_Y + 1.3, s.z + d.z * 5),
+      fov: 70,
+    };
+  },
   lobby: () => {
     const s = TOWER_SITES.aqua;
     return {

@@ -16,6 +16,8 @@ export const TOWER_SITES = {
   nimbus: { x: 17, z: -150, r: 9 },
   twinA: { x: 76, z: -79, r: 8 },
   twinB: { x: 90, z: -93, r: 8 },
+  // The duel tower stands at the front of the cluster, its door facing the meadow.
+  arena: { x: 42, z: -54, r: 13 },
 };
 
 export const TURBINES = [

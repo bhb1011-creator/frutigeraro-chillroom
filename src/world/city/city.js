@@ -4,6 +4,7 @@ import { heightAt, CLUSTER_Y } from '../terrain.js';
 import { buildTower, PODIUM_H } from './tower.js';
 import { CM, mesh, box, circle, roundedRect, slab } from './parts.js';
 import { mergeStatic } from './merge.js';
+import { arenaCrown, duelTerminal } from './arena.js';
 
 // ---------- Tower crowns (s scales them up for the giants) ----------
 
@@ -124,6 +125,8 @@ const CLUSTER_TOWERS = {
   },
   twinA: { name: 'Twin Aero', outline: circle(6.2, 48), floors: 16, facade: { hue: 200, seed: 57, lit: 0.03 }, fins: 1.3, coreScale: 0.36, crown: orbCrown },
   twinB: { name: 'Twin Aero', outline: circle(6.2, 48), floors: 16, facade: { hue: 200, seed: 71, lit: 0.03 }, fins: 1.3, coreScale: 0.36, crown: orbCrown },
+  // The duel tower: only the podium comes from the generator; arenaCrown builds the sculpted shaft on top.
+  arena: { name: 'Aero-Duell', outline: circle(11, 80), floors: 0, facade: { hue: 178, seed: 41, lit: 0.03 }, openRoof: true, crown: arenaCrown },
 };
 
 // ---------- Skyline on the horizon ----------
@@ -209,7 +212,17 @@ export function createCity() {
     const x = site.x - CLUSTER.x;
     const z = site.z - CLUSTER.z;
     spec.entrance = Math.PI / 2;
-    cluster.add(buildTower(spec, { x, y: 0, z, rotY: Math.atan2(-x, -z) }, null));
+    // Entrances face the middle of the cluster; the duel tower's faces the meadow and the spawn.
+    const rotY = key === 'arena' ? Math.atan2(SPAWN.x - site.x, SPAWN.z - site.z) : Math.atan2(-x, -z);
+    const tower = buildTower(spec, { x, y: 0, z, rotY }, null);
+    cluster.add(tower);
+    if (key === 'arena') {
+      // Duel terminal in the lobby, a few metres inside the door.
+      const terminal = duelTerminal();
+      terminal.position.set(0, 0.15, 7.4);
+      tower.add(terminal);
+      tower.userData.terminal = terminal;
+    }
   }
 
   // Glass sky bridges between the twins.

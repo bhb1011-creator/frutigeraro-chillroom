@@ -194,8 +194,11 @@ export function buildTower(spec, place, trees) {
 
   // ---------- Roof ----------
   const roofOutline = spec.twist ? rotateOutline(topOutline, spec.floors * spec.twist) : topOutline;
-  group.add(mesh(slab(offsetOutline(roofOutline, 0.3), topY, 0.6, { bevel: 0.1 }), CM.white));
-  group.add(balustrade(offsetOutline(roofOutline, 0.15), topY + 0.7));
+  // openRoof: the crown builds its own roof (the duel tower's pool deck).
+  if (!spec.openRoof) {
+    group.add(mesh(slab(offsetOutline(roofOutline, 0.3), topY, 0.6, { bevel: 0.1 }), CM.white));
+    group.add(balustrade(offsetOutline(roofOutline, 0.15), topY + 0.7));
+  }
   if (spec.crown) spec.crown({ ...ctx, topY: topY + 0.7, roofOutline });
   // Tower-local collision data; city.js turns it into world-space walls and floors for the player.
   group.userData.collision = { outline, podium, topY: topY + 0.7 };
