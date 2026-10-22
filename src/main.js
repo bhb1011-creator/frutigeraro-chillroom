@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
@@ -13,7 +12,10 @@ import { createBuildings } from './world/buildings.js';
 import { createBuddy, BUDDY_COLORS } from './world/character.js';
 import { createCity } from './world/city/city.js';
 import { allLoaded } from './world/assets.js';
-import { SPAWN, CLUSTER } from './world/layout.js';
+import { SPAWN, CLUSTER, TURBINES } from './world/layout.js';
+import { CollisionWorld } from './game/collision.js';
+import { PlayerController } from './game/controls.js';
+import { createHud } from './game/hud.js';
 import { SHOTS } from './shots.js';
 
 const params = new URLSearchParams(location.search);
@@ -109,7 +111,7 @@ const add = (obj) => {
 };
 add(createTerrain());
 add(createBuildings());
-add(createCity());
+const city = add(createCity());
 
 // Just meadow: dense grass that travels with the camera, everywhere you go.
 const grassPromise = createGrass();
@@ -119,7 +121,8 @@ const playerColor = params.get('figur') in BUDDY_COLORS ? params.get('figur') : 
 const character = createBuddy({ color: playerColor });
 character.position.set(SPAWN.x, heightAt(SPAWN.x, SPAWN.z) + 0.02, SPAWN.z);
 character.rotation.y = Math.atan2(CLUSTER.x - SPAWN.x, CLUSTER.z - SPAWN.z);
-add(character);
+// Animated by the controller (or posed for screenshots), so not in the updatables list.
+scene.add(character);
 
 // Grass lives on layer 1: the main camera sees it, the reflection and shadow cameras skip it.
 camera.layers.enable(1);
@@ -155,6 +158,7 @@ composer.addPass(bloom);
 composer.addPass(new OutputPass());
 
 let controls = null;
+let player = character;
 const shot = shotName && SHOTS[shotName] ? SHOTS[shotName](character) : null;
 if (shot) {
   camera.position.copy(shot.position);
@@ -163,11 +167,24 @@ if (shot) {
   camera.updateProjectionMatrix();
   focusShadows(shot.target.x * 0.5 + shot.position.x * 0.5, shot.target.z * 0.5 + shot.position.z * 0.5);
 } else {
-  camera.position.set(character.position.x + 3, character.position.y + 2.2, character.position.z + 5);
-  controls = new OrbitControls(camera, renderer.domElement);
-  controls.target.copy(character.position).add(new THREE.Vector3(0, 1.1, 0));
-  controls.enableDamping = true;
-  focusShadows(character.position.x, character.position.z - 40);
+  // Play mode: physics world from the walkable towers and the turbine masts.
+  const world = new CollisionWorld();
+  world.add(city.userData.colliders);
+  world.add({ circles: TURBINES.map(([x, z]) => ({ x, z, r: 1.0, y0: heightAt(x, z) - 1, y1: heightAt(x, z) + 40 })) });
+  controls = new PlayerController({ player: character, camera, dom: renderer.domElement, world });
+  const hud = createHud({
+    color: playerColor,
+    onColor: (key) => {
+      const next = createBuddy({ color: key });
+      scene.remove(player);
+      controls.setPlayer(next);
+      player = next;
+      scene.add(next);
+    },
+  });
+  controls.bindTouch(hud);
+  // Handle for automated tests (and the browser console).
+  window.__game = { controls, world, get player() { return player; } };
 }
 
 addEventListener('resize', () => {
@@ -194,14 +211,15 @@ function frame() {
   if (shot) {
     character.userData.pose(shotName === 'spielansicht' ? 'walk' : 'idle', 0.4);
   } else {
-    character.userData.update(dt);
+    controls.update(dt);
+    focusShadows(player.position.x, player.position.z);
   }
   sky.position.copy(camera.position);
   sky.userData.update(t);
-  controls?.update();
   composer.render();
   if (++frames === 1) window.__ready = true;
-  if (!shot || !window.__ready) requestAnimationFrame(frame);
+  // ?pause stops after the first frame (used by the physics test).
+  if ((!shot && !params.has('pause')) || !window.__ready) requestAnimationFrame(frame);
 }
 frame();
 

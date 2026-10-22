@@ -9,7 +9,7 @@ import { loadModel } from './assets.js';
 // around the camera, so clumps stay put in the world and only reappear on the far side when
 // left behind. Heights (and where grass may grow) come from a heightmap texture.
 //
-//   near layer: very dense, small clumps up to ~32 m
+//   near layer: very dense (a clump every 14 cm), small clumps up to ~32 m
 //   far layer:  coarser, bigger clumps from ~18 m to ~145 m (overlaps the near layer's fade)
 // Beyond that the neon ground texture carries the meadow.
 
@@ -17,7 +17,7 @@ import { loadModel } from './assets.js';
 const GREENS = [0x6dff1e, 0x86ff30, 0x5cf614, 0x9cff44, 0x7af826, 0xb0ff58].map((c) => new THREE.Color(c));
 
 const LAYERS = [
-  { size: 66, spacing: 0.17, scale: 0.16, fadeIn: 0, fadeOut: 32 },
+  { size: 66, spacing: 0.14, scale: 0.18, fadeIn: 0, fadeOut: 32 },
   { size: 300, spacing: 0.5, scale: 0.3, fadeIn: 18, fadeOut: 145 },
 ];
 

@@ -110,7 +110,7 @@ export function buildTower(spec, place, trees) {
   // Towers without a podium (unreachable background giants) start their facade at the ground.
   const base = spec.podium === false ? 0 : PODIUM_H;
   if (spec.podium === false) group.add(mesh(prismWall(offsetOutline(outline, 0.1), -12, 0.4), CM.white));
-  else buildPodium(ctx);
+  const podium = spec.podium === false ? null : buildPodium(ctx);
 
   // ---------- Office floors ----------
   const bands = [];
@@ -197,6 +197,8 @@ export function buildTower(spec, place, trees) {
   group.add(mesh(slab(offsetOutline(roofOutline, 0.3), topY, 0.6, { bevel: 0.1 }), CM.white));
   group.add(balustrade(offsetOutline(roofOutline, 0.15), topY + 0.7));
   if (spec.crown) spec.crown({ ...ctx, topY: topY + 0.7, roofOutline });
+  // Tower-local collision data; city.js turns it into world-space walls and floors for the player.
+  group.userData.collision = { outline, podium, topY: topY + 0.7 };
   return group;
 }
 
@@ -462,6 +464,23 @@ function buildPodium({ group, outline, plant, rng, spec }) {
     group.add(pl);
     plant('bush', p.clone().setY(ff + 0.72), 0.35);
   }
+  const local = (obj, x, z) => {
+    obj.updateMatrix();
+    const v = new THREE.Vector3(x, 0, z).applyMatrix4(obj.matrix);
+    return [v.x, v.z];
+  };
+  return {
+    door: outline.map((_, i) => isDoor(i)),
+    core: coreOutline,
+    columns: colMats.map((m) => [m.elements[12], m.elements[14]]),
+    canopyColumns: [-1, 1].map((s) => local(canopy, s * 2.9, 3.25)),
+    room: [[-1.8, -1.4], [1.8, -1.4], [1.8, 1.4], [-1.8, 1.4]].map(([x, z]) => local(room, x, z)),
+    stairs: hasStairs ? { x: stairStart.x, z: stairStart.z, dx: stairDir.x, dz: stairDir.z, run: stairRun, width: stairW } : null,
+    hole: hasStairs ? hole : null,
+    ground: 0.15,
+    first: GROUND_H + SLAB_T,
+    ceiling: PODIUM_H,
+  };
 }
 
 function distToSegment(p, start, dir, len) {

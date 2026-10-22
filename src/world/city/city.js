@@ -152,6 +152,50 @@ const SKYLINE = [
   [272, 5, g({ outline: circle(14, 56), floors: 26, facade: { hue: 198, seed: 131, lit: 0 }, fins: 2.2, crown: (c) => spireCrown(c, 2) })],
 ];
 
+// World-space walls, floors and stair ramps of the walkable towers, for the player physics.
+function clusterColliders(cluster) {
+  const out = { floors: [], ramps: [], walls: [], circles: [] };
+  const v = new THREE.Vector3();
+  for (const t of cluster.children) {
+    const c = t.userData.collision;
+    if (!c?.podium) continue;
+    const m = t.matrixWorld;
+    const base = m.elements[13];
+    const w = ([x, z]) => {
+      v.set(x, 0, z).applyMatrix4(m);
+      return [v.x, v.z];
+    };
+    const loop = (pts, y0, y1, skip = () => false) => {
+      pts.forEach((p, i) => {
+        if (skip(i)) return;
+        const [ax, az] = w(p);
+        const [bx, bz] = w(pts[(i + 1) % pts.length]);
+        out.walls.push({ ax, az, bx, bz, y0, y1 });
+      });
+    };
+    const p = c.podium;
+    const outline = c.outline.map(w);
+    // Outer glass walls; door segments only block above the door head.
+    loop(c.outline, base - 1, base + c.topY, (i) => p.door[i]);
+    loop(c.outline, base + 3.4, base + c.topY, (i) => !p.door[i]);
+    loop(p.core, base, base + p.ceiling);
+    loop(p.room, base + p.first, base + p.first + 2.9);
+    for (const col of p.columns) out.circles.push({ x: w(col)[0], z: w(col)[1], r: 0.32, y0: base, y1: base + p.ceiling });
+    for (const col of p.canopyColumns) out.circles.push({ x: w(col)[0], z: w(col)[1], r: 0.15, y0: base, y1: base + 4 });
+    out.floors.push({ outline, y: base + p.ground });
+    out.floors.push({ outline, holes: p.hole ? [p.hole.map(w)] : [], y: base + p.first });
+    if (p.stairs) {
+      const [x, z] = w([p.stairs.x, p.stairs.z]);
+      const d = new THREE.Vector3(p.stairs.dx, 0, p.stairs.dz).transformDirection(m);
+      out.ramps.push({ x, z, dx: d.x, dz: d.z, run: p.stairs.run, width: p.stairs.width, y0: base + p.ground, y1: base + p.first });
+      // Railing around the stair void on three sides; the top of the stair stays open.
+      const h = p.hole;
+      loop([h[3], h[0], h[1], h[2]], base + p.first, base + p.first + 1.05, (i) => i === 3);
+    }
+  }
+  return out;
+}
+
 export function createCity() {
   const city = new THREE.Group();
   city.name = 'city';
@@ -188,6 +232,8 @@ export function createCity() {
     }
     cluster.add(bridge);
   }
+  cluster.updateMatrixWorld(true);
+  city.userData.colliders = clusterColliders(cluster);
   mergeStatic(cluster);
 
   // The skyline: no interiors, built straight up from well below the ground.

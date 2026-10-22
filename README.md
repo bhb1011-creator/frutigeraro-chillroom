@@ -21,9 +21,25 @@ Türmen hinter den Hügeln hervor, die man nie erreicht. Gebaut mit [Three.js](h
 
 ```bash
 npm install
-npm run dev          # Welt im Browser ansehen (Maus: drehen/zoomen)
+npm run dev          # Spiel im Browser starten
 npm run screenshots  # Screenshots neu rendern -> screenshots/
+npm test             # Physik-Test: Tür, Wand, Treppe, Sprung
 ```
+
+## Steuerung
+
+| Aktion | Tastatur & Maus | Touch |
+| --- | --- | --- |
+| Laufen | WASD oder Pfeiltasten | Joystick links |
+| Rennen | Shift gedrückt halten | Joystick ganz nach außen |
+| Springen | Leertaste | Knopf „Sprung“ |
+| Kamera drehen | Maus ziehen | Wischen |
+| Zoomen | Mausrad | – |
+| Farbe der Figur | Farbkugeln unten | Farbkugeln unten |
+
+Man kann durch die Türen in die Hochhäuser gehen und über die Treppe in den ersten Stock.
+Glaswände, Kerne mit Aufzügen, Säulen und Windradmasten blockieren; die Skyline am Horizont
+bleibt unerreichbar.
 
 Eine einzelne Ansicht direkt öffnen: `http://localhost:5173/?shot=lobby`
 (Namen siehe `src/shots.js`). Farbe der Spielfigur wählen: `?figur=blau` (blau, rot, gold, tuerkis,
@@ -59,6 +75,9 @@ gruen, pink, glas).
 - `src/world/city/`: Hochhaus-Generator (`tower.js`), Bauteile und Möbel (`parts.js`),
   prozedurale Texturen (`textures.js`), Hochhausblock und Skyline (`city.js`)
 - `src/world/buildings.js`: Windräder
+- `src/game/controls.js`: Third-Person-Steuerung (Bewegung, Sprung, Kamera, Touch)
+- `src/game/collision.js`: Böden, Treppenrampen, Wände und Hindernisse
+- `src/game/hud.js`: Glas-Oberfläche mit Hilfe, Farbauswahl, Joystick
 - `src/shots.js`: Kamerapositionen für die Screenshots
 
 ## Asset-Quellen
