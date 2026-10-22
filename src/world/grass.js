@@ -10,7 +10,7 @@ import { loadModel } from './assets.js';
 // left behind. Heights (and where grass may grow) come from a heightmap texture.
 //
 //   near layer: very dense, small clumps up to ~32 m
-//   far layer:  coarser, bigger clumps from ~18 m to ~115 m (overlaps the near layer's fade)
+//   far layer:  coarser, bigger clumps from ~18 m to ~145 m (overlaps the near layer's fade)
 // Beyond that the neon ground texture carries the meadow.
 
 // Bright neon greens for the dream meadow.
@@ -18,7 +18,7 @@ const GREENS = [0x6dff1e, 0x86ff30, 0x5cf614, 0x9cff44, 0x7af826, 0xb0ff58].map(
 
 const LAYERS = [
   { size: 66, spacing: 0.17, scale: 0.16, fadeIn: 0, fadeOut: 32 },
-  { size: 240, spacing: 0.5, scale: 0.26, fadeIn: 18, fadeOut: 115 },
+  { size: 300, spacing: 0.5, scale: 0.3, fadeIn: 18, fadeOut: 145 },
 ];
 
 const HEIGHTMAP_RES = 2; // metres per texel, matches the terrain mesh
@@ -58,7 +58,9 @@ function grassMaterial(map, layer, shared) {
     map,
     alphaTest: 0.45,
     side: THREE.DoubleSide,
-    roughness: 0.6,
+    // Matte, with little sky reflection: bluish highlights would make the blades duller than the hills.
+    roughness: 0.92,
+    envMapIntensity: 0.45,
   });
   mat.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, shared, {
@@ -77,6 +79,7 @@ function grassMaterial(map, layer, shared) {
         attribute vec4 aRand;
         attribute vec3 aColor;
         varying float vH;
+        varying float vGrassDist;
         varying vec3 vGrassColor;
 
         // Manual bilinear filtering: float textures are not filterable everywhere.
@@ -93,19 +96,32 @@ function grassMaterial(map, layer, shared) {
           return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
         }`,
       )
+      // Placement, fading and the terrain normal are worked out up front so the lighting can use
+      // the slope of the ground: grass and ground then shade alike and blend without a seam.
       .replace(
-        '#include <begin_vertex>',
+        '#include <beginnormal_vertex>',
         `
-        // Wrap this clump into the square around the camera.
         vec2 rel = mod(aOffset - uCam.xz + uSize * 0.5, uSize) - uSize * 0.5;
         vec2 wxz = uCam.xz + rel;
         float dist = length(rel);
         vec4 hs = heightSample(wxz);
-        float inside = step(abs(wxz.x), uHalf - 1.0) * step(abs(wxz.y), uHalf - 1.0);
-        float fade = smoothstep(uFade.y, uFade.y * 0.8, dist);
-        if (uFade.x > 0.0) fade *= smoothstep(uFade.x, uFade.x * 1.25, dist);
-        float sc = aRand.y * fade * step(0.5, hs.g) * inside;
-
+        float inside = step(abs(wxz.x), uHalf - 3.0) * step(abs(wxz.y), uHalf - 3.0);
+        // Dithered fade: each clump has its own threshold, so the layer thins out gradually
+        // instead of ending in a visible ring. Fading in and out use the same threshold.
+        float rnd = fract(sin(dot(aOffset, vec2(12.9898, 78.233))) * 43758.5453);
+        float keep = 1.0 - smoothstep(uFade.y * 0.55, uFade.y, dist);
+        if (uFade.x > 0.0) keep = min(keep, smoothstep(uFade.x * 0.6, uFade.x * 1.4, dist));
+        float sc = aRand.y * step(rnd, keep) * mix(0.7, 1.0, keep) * step(0.5, hs.g) * inside;
+        vGrassDist = dist;
+        float hl = heightSample(wxz - vec2(2.0, 0.0)).r;
+        float hr = heightSample(wxz + vec2(2.0, 0.0)).r;
+        float hd = heightSample(wxz - vec2(0.0, 2.0)).r;
+        float hu = heightSample(wxz + vec2(0.0, 2.0)).r;
+        vec3 objectNormal = normalize(vec3(hl - hr, 4.0, hd - hu));`,
+      )
+      .replace(
+        '#include <begin_vertex>',
+        `
         vH = position.y / 2.0;
         vGrassColor = aColor;
         vec3 transformed = position * vec3(sc * aRand.z, sc * aRand.w, sc * aRand.z);
@@ -116,18 +132,17 @@ function grassMaterial(map, layer, shared) {
         transformed.x += sway * vH * vH * sc;
         transformed.z += sway * 0.5 * vH * vH * sc;
         transformed += vec3(wxz.x, hs.r - 0.03, wxz.y);`,
-      )
-      // Light the clumps like a lawn surface, which reads much softer than per-card normals.
-      .replace('#include <beginnormal_vertex>', 'vec3 objectNormal = vec3(0.0, 1.0, 0.0);');
+      );
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying float vH;\nvarying vec3 vGrassColor;')
+      .replace('#include <common>', '#include <common>\nvarying float vH;\nvarying float vGrassDist;\nvarying vec3 vGrassColor;')
       .replace(
         '#include <color_fragment>',
         `#include <color_fragment>
-        diffuseColor.rgb *= vGrassColor * mix(1.05, 1.9, smoothstep(0.0, 0.9, vH));`,
+        // Brightness matched to the ground shader; distant clumps a touch lighter, like the ground they meet.
+        diffuseColor.rgb *= vGrassColor * vec3(1.8, 1.4, 1.75) * mix(1.3, 2.25, smoothstep(0.0, 0.9, vH)) * mix(1.0, 1.12, smoothstep(15.0, 110.0, vGrassDist));`,
       );
   };
-  mat.customProgramCacheKey = () => `grass-travel-${layer.size}`;
+  mat.customProgramCacheKey = () => `grass-travel-v5-${layer.size}`;
   return mat;
 }
 

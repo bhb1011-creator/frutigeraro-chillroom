@@ -35,7 +35,7 @@ export const SHOTS = {
   },
   horizont: () => ({
     position: ground(SPAWN.x - 20, SPAWN.z + 10, 2.2),
-    target: v(60, 90, -1500),
+    target: v(-120, 110, -1500),
     fov: 55,
   }),
   boden: () => ({

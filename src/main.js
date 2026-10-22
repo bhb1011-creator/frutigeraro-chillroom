@@ -51,16 +51,17 @@ sun.shadow.mapSize.set(4096, 4096);
 sun.shadow.bias = -0.0003;
 sun.shadow.normalBias = 0.04;
 const sc = sun.shadow.camera;
-sc.left = sc.bottom = -110;
-sc.right = sc.top = 110;
+// A wide shadow area so its edge stays out of view.
+sc.left = sc.bottom = -220;
+sc.right = sc.top = 220;
 sc.near = 1;
-sc.far = 600;
+sc.far = 900;
 scene.add(sun, sun.target);
 scene.add(new THREE.HemisphereLight(0xc8ecff, 0x6fe04a, 1.0));
 
 function focusShadows(x, z) {
   sun.target.position.set(x, 0, z);
-  sun.position.copy(sun.target.position).addScaledVector(SUN_DIRECTION, 300);
+  sun.position.copy(sun.target.position).addScaledVector(SUN_DIRECTION, 450);
 }
 
 // Lens flare on a far light placed along the sun direction.

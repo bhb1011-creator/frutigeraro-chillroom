@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CLUSTER, TOWER_SITES } from '../layout.js';
+import { CLUSTER, TOWER_SITES, SPAWN } from '../layout.js';
 import { heightAt, CLUSTER_Y } from '../terrain.js';
 import { buildTower, PODIUM_H } from './tower.js';
 import { CM, mesh, box, circle, roundedRect, slab } from './parts.js';
@@ -126,54 +126,30 @@ const CLUSTER_TOWERS = {
   twinB: { name: 'Twin Aero', outline: circle(6.2, 48), floors: 16, facade: { hue: 200, seed: 71, lit: 0.03 }, fins: 1.3, coreScale: 0.36, crown: orbCrown },
 };
 
-// ---------- Unreachable towers on the horizon ----------
-// Much bigger than the cluster and far out in the haze. Their feet are sunk below the hills,
-// so they only rise from behind the horizon and can never be reached.
-const GIANTS = [
-  {
-    at: [-280, -1450],
-    spec: {
-      outline: circle(28, 96),
-      floors: 72,
-      floorH: 4.5,
-      panelW: 2.6,
-      facade: { hue: 196, seed: 101, lit: 0 },
-      setbacks: [
-        { floor: 48, outline: circle(20, 96) },
-        { floor: 62, outline: circle(13, 96) },
-      ],
-      fins: 3.2,
-      crown: (ctx) => spireCrown(ctx, 4),
-    },
-  },
-  {
-    at: [520, -1300],
-    spec: { outline: roundedRect(50, 34, 12, 12), floors: 80, floorH: 4.5, panelW: 2.6, facade: { hue: 208, seed: 103, lit: 0 }, twist: 0.028, crown: (ctx) => orbCrown(ctx, 3) },
-  },
-  {
-    at: [-980, -900],
-    spec: { outline: circle(16, 64), floors: 88, floorH: 4.5, panelW: 2.4, facade: { hue: 186, seed: 107, lit: 0 }, fins: 2.6, crown: (ctx) => spireCrown(ctx, 2.6) },
-  },
-  {
-    at: [1150, -760],
-    spec: { outline: roundedRect(38, 30, 14, 12), floors: 46, floorH: 4.5, panelW: 2.6, facade: { hue: 172, seed: 109, lit: 0 }, fins: 3, crown: (ctx) => orbCrown(ctx, 3.2) },
-  },
-  {
-    at: [160, -1900],
-    spec: { outline: circle(22, 80), floors: 110, floorH: 4.5, panelW: 2.6, facade: { hue: 200, seed: 113, lit: 0 }, setbacks: [{ floor: 80, outline: circle(15, 80) }], fins: 3, crown: (ctx) => spireCrown(ctx, 3.5) },
-  },
-  {
-    at: [-1450, -260],
-    spec: { outline: roundedRect(40, 26, 10, 10), floors: 64, floorH: 4.5, panelW: 2.6, facade: { hue: 190, seed: 127, lit: 0 }, balconies: true, crown: (ctx) => orbCrown(ctx, 2.8) },
-  },
-  {
-    at: [1500, 320],
-    spec: { outline: circle(18, 64), floors: 96, floorH: 4.5, panelW: 2.4, facade: { hue: 204, seed: 131, lit: 0 }, fins: 2.8, crown: (ctx) => spireCrown(ctx, 3) },
-  },
-  {
-    at: [-800, 1350],
-    spec: { outline: circle(24, 80), floors: 70, floorH: 4.5, panelW: 2.6, facade: { hue: 176, seed: 137, lit: 0 }, twist: 0.02, crown: (ctx) => orbCrown(ctx, 3) },
-  },
+// ---------- Skyline on the horizon ----------
+// A far-away city of giant towers, all standing together. Seen from the meadow it sits to the left
+// of the walkable cluster. Their feet are sunk below the hills, so the skyline only rises from
+// behind the horizon and can never be reached.
+const SKYLINE_CENTER = new THREE.Vector2(-380, -1500);
+// u runs across the line of sight (left/right), v along it (front/back), in metres.
+const g = (spec) => ({ floorH: 6.75, panelW: 2.6, ...spec });
+const SKYLINE = [
+  [0, 0, g({ outline: circle(26, 96), floors: 62, facade: { hue: 196, seed: 101, lit: 0 }, setbacks: [{ floor: 44, outline: circle(19, 96) }, { floor: 54, outline: circle(12, 96) }], fins: 3.2, crown: (c) => spireCrown(c, 4) })],
+  [0, 130, g({ outline: circle(18, 72), floors: 56, facade: { hue: 204, seed: 103, lit: 0 }, fins: 2.8, crown: (c) => spireCrown(c, 3.5) })],
+  [-75, 45, g({ outline: roundedRect(44, 30, 10, 10), floors: 48, facade: { hue: 208, seed: 105, lit: 0 }, twist: 0.03, crown: (c) => orbCrown(c, 3) })],
+  [78, 35, g({ outline: circle(20, 80), floors: 52, facade: { hue: 190, seed: 107, lit: 0 }, fins: 3, crown: (c) => spireCrown(c, 3) })],
+  [-115, 105, g({ outline: circle(22, 80), floors: 50, facade: { hue: 198, seed: 109, lit: 0 }, setbacks: [{ floor: 38, outline: circle(16, 80) }], crown: (c) => spireCrown(c, 3) })],
+  [120, 110, g({ outline: roundedRect(40, 30, 12, 12), floors: 44, facade: { hue: 176, seed: 111, lit: 0 }, twist: 0.025, crown: (c) => orbCrown(c, 3) })],
+  [-145, -15, g({ outline: circle(16, 64), floors: 38, facade: { hue: 186, seed: 113, lit: 0 }, fins: 2.6, crown: (c) => orbCrown(c, 2.5) })],
+  [145, -10, g({ outline: roundedRect(36, 28, 12, 10), floors: 40, facade: { hue: 200, seed: 115, lit: 0 }, fins: 3, crown: (c) => orbCrown(c, 2.6) })],
+  [-35, -75, g({ outline: circle(14, 64), floors: 32, facade: { hue: 172, seed: 117, lit: 0 }, fins: 2.4, crown: (c) => spireCrown(c, 2.4) })],
+  [40, -85, g({ outline: roundedRect(30, 22, 8, 8), floors: 28, facade: { hue: 206, seed: 119, lit: 0 }, crown: (c) => orbCrown(c, 2.4) })],
+  [-210, 35, g({ outline: circle(18, 64), floors: 30, facade: { hue: 194, seed: 121, lit: 0 }, fins: 2.6, crown: (c) => orbCrown(c, 2.6) })],
+  [212, 45, g({ outline: circle(15, 64), floors: 34, facade: { hue: 184, seed: 123, lit: 0 }, fins: 2.4, crown: (c) => spireCrown(c, 2.4) })],
+  [-185, -70, g({ outline: circle(12, 56), floors: 22, facade: { hue: 202, seed: 125, lit: 0 }, crown: (c) => orbCrown(c, 2) })],
+  [188, -60, g({ outline: circle(12, 56), floors: 24, facade: { hue: 192, seed: 127, lit: 0 }, fins: 2.2, crown: (c) => spireCrown(c, 2) })],
+  [-270, -5, g({ outline: roundedRect(30, 24, 10, 8), floors: 24, facade: { hue: 180, seed: 129, lit: 0 }, crown: (c) => orbCrown(c, 2) })],
+  [272, 5, g({ outline: circle(14, 56), floors: 26, facade: { hue: 198, seed: 131, lit: 0 }, fins: 2.2, crown: (c) => spireCrown(c, 2) })],
 ];
 
 export function createCity() {
@@ -214,14 +190,16 @@ export function createCity() {
   }
   mergeStatic(cluster);
 
-  // The far towers: no interiors, built straight up from well below the ground.
+  // The skyline: no interiors, built straight up from well below the ground.
   const giants = new THREE.Group();
-  giants.name = 'giants';
+  giants.name = 'skyline';
   city.add(giants);
-  for (const { at, spec } of GIANTS) {
-    const [x, z] = at;
-    // Half again as tall as their floor count suggests (taller floors), so they tower over the hills.
-    const t = buildTower({ ...spec, podium: false, floorH: spec.floorH * 1.5 }, { x, y: heightAt(x, z) - 45, z, rotY: Math.atan2(-x, -z) }, null);
+  const toCenter = SKYLINE_CENTER.clone().sub(new THREE.Vector2(SPAWN.x, SPAWN.z)).normalize();
+  const across = new THREE.Vector2(-toCenter.y, toCenter.x);
+  for (const [u, v, spec] of SKYLINE) {
+    const x = SKYLINE_CENTER.x + across.x * u + toCenter.x * v;
+    const z = SKYLINE_CENTER.y + across.y * u + toCenter.y * v;
+    const t = buildTower({ ...spec, podium: false }, { x, y: heightAt(x, z) - 45, z, rotY: Math.atan2(SPAWN.x - x, SPAWN.z - z) }, null);
     t.traverse((o) => {
       o.castShadow = false;
     });

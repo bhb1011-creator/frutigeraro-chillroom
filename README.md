@@ -2,8 +2,8 @@
 
 Eine 3D-Traumwiese im **Frutiger-Aero**-Stil (ca. 2005–2013): knallgrünes Gras auf sanft fließenden
 Hügeln, ein Block spiegelnder Glashochhäuser, Windräder, hohe Haufenwolken und glänzende
-„Buddy“-Figuren im Stil der alten Messenger-Icons. In der Ferne ragen riesige Türme hinter den
-Hügeln hervor, die man nie erreicht. Gebaut mit [Three.js](https://threejs.org/) und [Vite](https://vitejs.dev/).
+„Buddy“-Figuren im Stil der alten Messenger-Icons. In der Ferne ragt eine Skyline aus riesigen
+Türmen hinter den Hügeln hervor, die man nie erreicht. Gebaut mit [Three.js](https://threejs.org/) und [Vite](https://vitejs.dev/).
 
 ## Screenshots
 
@@ -35,12 +35,15 @@ gruen, pink, glas).
 - **Gras**: dichtes, texturiertes Gras mit Wind, das mit der Kamera „mitwandert“: zwei Raster aus
   Grasbüscheln (nah sehr dicht, weiter weg gröber), die der Shader um die Kamera legt. Überall dicht,
   bei konstanten Kosten.
+- **Unsichtbare Übergänge**: Grasbüschel dünnen zum Rand zufällig aus statt in einem Ring zu enden,
+  Gras wird mit der Geländeneigung beleuchtet und ist farblich auf den Boden abgestimmt, die
+  Bodentextur beruhigt sich mit der Entfernung, und der Schattenbereich reicht über das Bild hinaus.
 - **Himmel**: raymarchte, volumetrische Cumulus-Wolken in 1.200–3.300 m Höhe (leicht bewölkt),
   Sonne mit Lens-Flare, heller Dunst.
 - **Hochhausblock** (begehbar): 8 Türme direkt im Gras, mit spiegelnden Fassaden, Etagenbändern,
   Lamellen, Wellen-Balkonen, verdrehtem Turm, Terrassen, Zwillingstürmen mit Skybridges.
   Erdgeschoss-Lobby und erster Stock mit Einrichtung.
-- **Ferne Türme**: acht riesige Hochhäuser am Horizont, deren Fuß hinter den Hügeln verborgen ist.
+- **Skyline**: 16 riesige Türme dicht beieinander am Horizont, deren Fuß hinter den Hügeln verborgen ist.
 - **Windräder** auf den Hügeln.
 - **Buddy-Figuren**: runder Kopf auf glockenförmigem Körper mit weichen Falten, glänzender
   Candy-Metallic-Lack in sieben Farben. Prozedural animiert: Atmen, Watscheln, Hüpfen.
@@ -54,7 +57,7 @@ gruen, pink, glas).
 - `src/world/grass.js`: mitwanderndes Gras
 - `src/world/character.js`: Buddy-Figuren
 - `src/world/city/`: Hochhaus-Generator (`tower.js`), Bauteile und Möbel (`parts.js`),
-  prozedurale Texturen (`textures.js`), Hochhausblock und ferne Türme (`city.js`)
+  prozedurale Texturen (`textures.js`), Hochhausblock und Skyline (`city.js`)
 - `src/world/buildings.js`: Windräder
 - `src/shots.js`: Kamerapositionen für die Screenshots
 

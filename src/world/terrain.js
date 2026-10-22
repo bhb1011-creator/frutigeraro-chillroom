@@ -80,12 +80,15 @@ function createGroundMaterial() {
         grass = mix(grass, gB, 0.2 * smoothstep(0.4, 0.9, gNoise(wp * 0.06 + 7.0)));
         // Keep the texture's light and shade but recolour it a saturated neon green.
         float lum = dot(grass, vec3(0.3, 0.59, 0.11));
+        // The texture's detail calms down with distance, so tiling and LOD changes don't show.
+        float calm = smoothstep(40.0, 400.0, distance(vGroundPos, cameraPosition));
+        lum = mix(lum, 0.13, calm * 0.75);
         vec3 neon = vec3(0.28, 1.0, 0.04) * (0.35 + lum * 2.6);
-        diffuseColor.rgb *= mix(grass * vec3(1.0, 1.6, 0.4), neon, 0.75);
+        diffuseColor.rgb *= mix(mix(grass * vec3(1.0, 1.6, 0.4), neon, 0.75), neon, calm);
         `,
       );
   };
-  mat.customProgramCacheKey = () => 'ground-dream-v1';
+  mat.customProgramCacheKey = () => 'ground-dream-v2';
   return mat;
 }
 
