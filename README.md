@@ -1,22 +1,21 @@
 # Frutiger Aero Chillroom
 
-Eine detaillierte 3D-Welt im **Frutiger-Aero**-Stil (ca. 2005–2013): spiegelnde Glastürme, Wasser,
-sattgrüne Wiesen, ein blauer Himmel mit hohen Haufenwolken und glänzende „Buddy“-Figuren im Stil
-der alten Messenger-Icons, die durch die Landschaft laufen. Gebaut mit [Three.js](https://threejs.org/) und [Vite](https://vitejs.dev/).
+Eine 3D-Traumwiese im **Frutiger-Aero**-Stil (ca. 2005–2013): knallgrünes Gras auf sanft fließenden
+Hügeln, ein Block spiegelnder Glashochhäuser, Windräder, hohe Haufenwolken und glänzende
+„Buddy“-Figuren im Stil der alten Messenger-Icons. In der Ferne ragen riesige Türme hinter den
+Hügeln hervor, die man nie erreicht. Gebaut mit [Three.js](https://threejs.org/) und [Vite](https://vitejs.dev/).
 
 ## Screenshots
 
 | Überblick | Spielansicht |
 | --- | --- |
 | ![Überblick](screenshots/ueberblick.png) | ![Spielansicht](screenshots/spielansicht.png) |
-| **See** | **Stadt** |
-| ![See](screenshots/see.png) | ![Stadt](screenshots/stadt.png) |
-| **Platz von oben** | **Spielfigur** |
-| ![Platz](screenshots/platz.png) | ![Figur](screenshots/figur.png) |
+| **Horizont** | **Gras aus Bodenhöhe** |
+| ![Horizont](screenshots/horizont.png) | ![Boden](screenshots/boden.png) |
+| **Zwischen den Hochhäusern** | **Spielfigur** |
+| ![Hochhäuser](screenshots/hochhaeuser.png) | ![Figur](screenshots/figur.png) |
 | **Lobby (Erdgeschoss)** | **Erster Stock** |
 | ![Lobby](screenshots/lobby.png) | ![Erster Stock](screenshots/stock1.png) |
-| **Figuren-Auswahl** | **Gras aus Bodenhöhe** |
-| ![Figuren](screenshots/figuren.png) | ![Boden](screenshots/boden.png) |
 
 ## Starten
 
@@ -32,44 +31,35 @@ gruen, pink, glas).
 
 ## Was drin ist
 
-- **Himmel**: raymarchte, volumetrische Cumulus-Wolken in 1.200–3.300 m Höhe (Perlin-Worley-Rauschen,
-  Selbstschatten, leicht bewölkt), Sonne mit Lens-Flare.
-- **Landschaft**: weite, flache Hügel bis zum Horizont; nahes Gelände detailliert, Fernbereich grob.
-  Bodenshader mit Foto-Grastextur (zwei Maßstäbe, gegen Kachel-Wiederholung), Sand, Erde, Seegrund.
-- **Gras**: ~600.000 texturierte Grasbüschel mit Wind, in 32-m-Kacheln mit Sichtweiten-Grenze.
-- **Bäume**: prozedurale Bäume mit echten Rinden- und Blatttexturen (Eiche, Esche, Espe, Kiefer, Büsche),
-  instanziert, mit Detailstufe nah/fern und Fernwäldern auf den Hügeln.
-- **Wasser**: spiegelnder See mit Wellen-Normalen und Fischen.
-- **Stadt**: 8 Hochhäuser (rund, Wellen-Balkone, verdrehter Turm, Terrassen-Turm, Zwillingstürme
-  mit Skybridges), Fassaden mit Fensterraster, beleuchteten Büros, Etagenbändern, Lamellen,
-  Dachgärten und Turmspitzen. Die Glastürme spiegeln die echte Stadt.
-- **Begehbare Gebäude**: Erdgeschoss-Lobby (Glaswände, offene Schiebetüren, Vordach, Rezeption,
-  Aufzüge, Lounge, Säulen, Pflanzen, Bildschirm) und erster Stock (Treppe, Co-Working-Tische,
-  Café, gläserner Besprechungsraum).
-- **Platz**: Globus-Brunnen mit Wasserbögen, Rasenflächen, Boulevard mit Laternen, Bänken,
-  Baumkübeln, Info-Terminals, Wasserbecken, Ringbahn mit Station und Zug, Biodom.
+- **Wiese**: weite, fließende Hügel bis zum Horizont, Boden mit neongrün eingefärbter Foto-Grastextur.
+- **Gras**: dichtes, texturiertes Gras mit Wind, das mit der Kamera „mitwandert“: zwei Raster aus
+  Grasbüscheln (nah sehr dicht, weiter weg gröber), die der Shader um die Kamera legt. Überall dicht,
+  bei konstanten Kosten.
+- **Himmel**: raymarchte, volumetrische Cumulus-Wolken in 1.200–3.300 m Höhe (leicht bewölkt),
+  Sonne mit Lens-Flare, heller Dunst.
+- **Hochhausblock** (begehbar): 8 Türme direkt im Gras, mit spiegelnden Fassaden, Etagenbändern,
+  Lamellen, Wellen-Balkonen, verdrehtem Turm, Terrassen, Zwillingstürmen mit Skybridges.
+  Erdgeschoss-Lobby und erster Stock mit Einrichtung.
+- **Ferne Türme**: acht riesige Hochhäuser am Horizont, deren Fuß hinter den Hügeln verborgen ist.
+- **Windräder** auf den Hügeln.
 - **Buddy-Figuren**: runder Kopf auf glockenförmigem Körper mit weichen Falten, glänzender
-  Candy-Metallic-Lack in sieben Farben (auch eine Glas-Variante). Prozedural animiert: Atmen,
-  Watscheln beim Gehen, Hüpfen beim Laufen, Squash & Stretch. Spielfigur, Figuren-Podest
-  in der Wiese und Passanten in der Stadt.
+  Candy-Metallic-Lack in sieben Farben. Prozedural animiert: Atmen, Watscheln, Hüpfen.
 
 ## Aufbau
 
 - `src/main.js`: Szene, Licht, Nachbearbeitung, Kamera
+- `src/world/layout.js`: Startpunkt, Hochhausblock, Windräder
 - `src/world/sky.js`, `cloudNoise.js`: Himmel und volumetrische Wolken
-- `src/world/terrain.js`: Höhenfunktion, Bodenshader, Weg
-- `src/world/grass.js`, `trees.js`, `nature.js`: Gras, Bäume, Verteilung
-- `src/world/water.js`: Wasser und Fische
-- `src/world/character.js`: Buddy-Figuren und Figuren-Podest
+- `src/world/terrain.js`: Höhenfunktion und Bodenshader
+- `src/world/grass.js`: mitwanderndes Gras
+- `src/world/character.js`: Buddy-Figuren
 - `src/world/city/`: Hochhaus-Generator (`tower.js`), Bauteile und Möbel (`parts.js`),
-  Stadtmöbel (`props.js`), prozedurale Texturen (`textures.js`), Stadtplan (`city.js`)
-- `src/world/buildings.js`: Öko-Häuser und Windräder
+  prozedurale Texturen (`textures.js`), Hochhausblock und ferne Türme (`city.js`)
+- `src/world/buildings.js`: Windräder
 - `src/shots.js`: Kamerapositionen für die Screenshots
 
 ## Asset-Quellen
 
-- Bäume, Rinden-/Blatttexturen, Bodentextur, Grasbüschel, Erde: [EZ-Tree](https://github.com/dgreenheck/ez-tree)
-  von Daniel Greenheck (MIT; Rinden teils von Poly Haven/TextureCan).
-- `waternormals.jpg`, `grasslight-big.jpg`: aus den
-  [Three.js-Beispielen](https://github.com/mrdoob/three.js/tree/dev/examples) (MIT).
-- Die Buddy-Figuren sind komplett im Code modelliert, ohne externe Modelle.
+- Bodentextur und Grasbüschel: aus [EZ-Tree](https://github.com/dgreenheck/ez-tree) von Daniel Greenheck (MIT).
+- `grasslight-big.jpg`: aus den [Three.js-Beispielen](https://github.com/mrdoob/three.js/tree/dev/examples) (MIT).
+- Figuren, Hochhäuser und Wolken sind komplett im Code erzeugt.

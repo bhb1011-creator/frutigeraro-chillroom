@@ -1,25 +1,25 @@
 import * as THREE from 'three';
-import { heightAt } from './world/terrain.js';
-import { LAKE, CITY, PODIUM } from './world/layout.js';
+import { heightAt, CLUSTER_Y } from './world/terrain.js';
+import { CLUSTER, SPAWN, TOWER_SITES } from './world/layout.js';
 
 const v = (x, y, z) => new THREE.Vector3(x, y, z);
-const ground = (x, z, up) => v(x, Math.max(heightAt(x, z), 0) + up, z);
-// Plaza-local coordinates → world (plaza floor is at CITY.height).
-const c = (x, y, z) => v(CITY.x + x, CITY.height + y, CITY.z + z);
+const ground = (x, z, up) => v(x, heightAt(x, z) + up, z);
+// Cluster-local coordinates → world (the cluster ground is at CLUSTER_Y).
+const c = (x, y, z) => v(CLUSTER.x + x, CLUSTER_Y + y, CLUSTER.z + z);
 
 // Fixed camera positions for screenshots, opened with ?shot=<name>.
 export const SHOTS = {
   ueberblick: () => ({
-    position: v(-190, 95, 170),
-    target: v(20, 5, -70),
-    fov: 50,
+    position: ground(-170, 190, 45),
+    target: v(40, 40, -200),
+    fov: 52,
   }),
   spielansicht: (ch) => {
     const p = ch.position;
     const back = v(Math.sin(ch.rotation.y), 0, Math.cos(ch.rotation.y));
     return {
       position: p.clone().addScaledVector(back, -4.2).add(v(1.0, 2.1, 0)),
-      target: p.clone().addScaledVector(back, 10).add(v(0, 1.8, 0)),
+      target: p.clone().addScaledVector(back, 10).add(v(0, 2.6, 0)),
       fov: 60,
     };
   },
@@ -33,39 +33,35 @@ export const SHOTS = {
       fov: 45,
     };
   },
-  figuren: () => ({
-    position: ground(PODIUM.x + 0.3, PODIUM.z + 4.3, 1.55),
-    target: ground(PODIUM.x, PODIUM.z - 0.6, 1.1),
-    fov: 50,
+  horizont: () => ({
+    position: ground(SPAWN.x - 20, SPAWN.z + 10, 2.2),
+    target: v(60, 90, -1500),
+    fov: 55,
   }),
   boden: () => ({
-    position: ground(-26, 66, 0.45),
-    target: ground(-42, 50, 0.8),
+    position: ground(SPAWN.x - 8, SPAWN.z - 8, 0.45),
+    target: ground(30, -120, 30),
     fov: 60,
   }),
-  see: () => ({
-    position: v(LAKE.x - 26, 5, LAKE.z + 26),
-    target: v(LAKE.x + 50, 14, LAKE.z - 60),
-    fov: 62,
-  }),
-  stadt: () => ({
-    position: c(-3, 2.4, 50),
-    target: c(0, 14, -20),
-    fov: 68,
-  }),
-  platz: () => ({
-    position: c(24, 30, 36),
-    target: c(-6, 6, -16),
-    fov: 60,
-  }),
-  lobby: () => ({
-    position: c(-2.5, 1.7, -36.2),
-    target: c(2.5, 2.4, -46),
+  hochhaeuser: () => ({
+    position: c(-6, 1.8, 32),
+    target: c(0, 32, -30),
     fov: 72,
   }),
-  stock1: () => ({
-    position: c(4, 6.9, -37),
-    target: c(-4, 6.4, -46),
-    fov: 72,
-  }),
+  lobby: () => {
+    const s = TOWER_SITES.aqua;
+    return {
+      position: v(s.x - 2.5, CLUSTER_Y + 1.7, s.z + 7.8),
+      target: v(s.x + 2.5, CLUSTER_Y + 2.4, s.z - 2),
+      fov: 72,
+    };
+  },
+  stock1: () => {
+    const s = TOWER_SITES.aqua;
+    return {
+      position: v(s.x + 4, CLUSTER_Y + 6.9, s.z + 7),
+      target: v(s.x - 4, CLUSTER_Y + 6.4, s.z - 2),
+      fov: 72,
+    };
+  },
 };

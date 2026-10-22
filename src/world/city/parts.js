@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { facadeTextures, marbleTexture, woodTexture, screenTexture } from './textures.js';
+import { facadeTextures, marbleTexture, screenTexture } from './textures.js';
 
 // ---------- Materials ----------
 
@@ -47,7 +47,6 @@ export const CM = {
   }),
   // Indoor materials see less sky, so their reflections are toned down.
   marble: new THREE.MeshPhysicalMaterial({ map: marbleTexture(), roughness: 0.12, clearcoat: 1, clearcoatRoughness: 0.04, envMapIntensity: 0.35 }),
-  wood: new THREE.MeshStandardMaterial({ map: woodTexture(), roughness: 0.55 }),
   cushion: new THREE.MeshStandardMaterial({ color: 0x2ec4ef, roughness: 0.75 }),
   cushionGreen: new THREE.MeshStandardMaterial({ color: 0x8edc4a, roughness: 0.75 }),
   lightPanel: new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 2.2 }),

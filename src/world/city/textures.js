@@ -111,42 +111,6 @@ export function facadeTextures({ hue = 200, cols = 8, rows = 4, seed = 1, spandr
   });
 }
 
-// Large-format plaza paving: light stone slabs, thin grout and aqua inlay lines.
-export function pavingTextures() {
-  return cached('paving', () => {
-    const S = 1024;
-    const rng = createRng(77);
-    const [c, g] = canvas(S, S);
-    const [cr, r] = canvas(S, S);
-    g.fillStyle = '#a9b8c4';
-    g.fillRect(0, 0, S, S);
-    r.fillStyle = 'rgb(200,200,200)';
-    r.fillRect(0, 0, S, S);
-    const rows = 8;
-    const th = S / rows;
-    for (let row = 0; row < rows; row++) {
-      const offset = (row % 2) * th;
-      for (let x = -offset; x < S; x += th * 2) {
-        const l = 76 + rng() * 10;
-        const warm = rng() < 0.35;
-        g.fillStyle = warm ? `hsl(${35 + rng() * 10}, ${12 + rng() * 10}%, ${l}%)` : `hsl(${200 + rng() * 15}, ${6 + rng() * 8}%, ${l}%)`;
-        g.fillRect(x + 3, row * th + 3, th * 2 - 6, th - 6);
-        // Fine stone speckle.
-        for (let i = 0; i < 260; i++) {
-          g.fillStyle = `rgba(${rng() < 0.5 ? '120,140,160' : '255,255,255'},${0.05 + rng() * 0.12})`;
-          g.fillRect(x + 3 + rng() * (th * 2 - 6), row * th + 3 + rng() * (th - 6), 2, 2);
-        }
-        const rough = 70 + rng() * 60;
-        r.fillStyle = `rgb(${rough},${rough},${rough})`;
-        r.fillRect(x + 3, row * th + 3, th * 2 - 6, th - 6);
-      }
-    }
-    g.fillStyle = 'rgba(0,170,230,0.55)';
-    g.fillRect(0, S / 2 - 3, S, 6);
-    return { map: toTexture(c), roughnessMap: toTexture(cr, false) };
-  });
-}
-
 // Polished white marble with soft grey-blue veins for lobby floors.
 export function marbleTexture() {
   return cached('marble', () => {
@@ -174,25 +138,6 @@ export function marbleTexture() {
     for (let i = 0; i <= 4; i++) {
       g.fillRect(0, (i * S) / 4 - 1, S, 2);
       g.fillRect((i * S) / 4 - 1, 0, 2, S);
-    }
-    return toTexture(c);
-  });
-}
-
-export function woodTexture() {
-  return cached('wood', () => {
-    const [c, g] = canvas(256, 256);
-    const rng = createRng(9);
-    g.fillStyle = '#c99a63';
-    g.fillRect(0, 0, 256, 256);
-    for (let i = 0; i < 90; i++) {
-      g.strokeStyle = `rgba(${120 + rng() * 40},${80 + rng() * 30},${40 + rng() * 20},${0.2 + rng() * 0.3})`;
-      g.lineWidth = 1 + rng() * 2;
-      const y = rng() * 256;
-      g.beginPath();
-      g.moveTo(0, y);
-      g.bezierCurveTo(80, y + rng() * 8 - 4, 170, y + rng() * 8 - 4, 256, y);
-      g.stroke();
     }
     return toTexture(c);
   });
@@ -255,26 +200,6 @@ export function screenTexture(title = 'Willkommen in Aero City', seed = 1) {
       g.arc(x, 650, 40, 0, Math.PI * 2);
       g.fill();
     }
-    return toTexture(c);
-  });
-}
-
-// Shop sign / storefront graphic.
-export function signTexture(text, hue) {
-  return cached(`sign|${text}|${hue}`, () => {
-    const [c, g] = canvas(512, 128);
-    const grad = g.createLinearGradient(0, 0, 0, 128);
-    grad.addColorStop(0, `hsl(${hue}, 90%, 75%)`);
-    grad.addColorStop(0.5, `hsl(${hue}, 85%, 55%)`);
-    grad.addColorStop(1, `hsl(${hue}, 90%, 45%)`);
-    g.fillStyle = grad;
-    g.fillRect(0, 0, 512, 128);
-    g.fillStyle = 'rgba(255,255,255,0.35)';
-    g.fillRect(0, 0, 512, 60);
-    g.fillStyle = '#fff';
-    g.font = 'bold 64px sans-serif';
-    g.textAlign = 'center';
-    g.fillText(text, 256, 88);
     return toTexture(c);
   });
 }

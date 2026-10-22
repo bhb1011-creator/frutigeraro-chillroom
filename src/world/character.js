@@ -1,6 +1,4 @@
 import * as THREE from 'three';
-import { PODIUM } from './layout.js';
-import { heightAt } from './terrain.js';
 
 // "Buddy" figures in the style of the classic messenger icons: a round head on a soft,
 // bell-shaped body with draped folds, finished in glossy candy-metallic paint.
@@ -165,37 +163,5 @@ export function createBuddy({ color = 'gruen', scale = 1 } = {}) {
     },
   };
   apply();
-  return group;
-}
-
-// Character line-up: a glossy podium with one buddy of each colour, facing the path.
-export function createBuddyPodium(colors = ['blau', 'rot', 'gold', 'tuerkis', 'gruen']) {
-  const group = new THREE.Group();
-  group.name = 'buddy-podium';
-  const y = heightAt(PODIUM.x, PODIUM.z);
-  group.position.set(PODIUM.x, y, PODIUM.z);
-  const white = new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.18, clearcoat: 1, clearcoatRoughness: 0.04 });
-  const glow = new THREE.MeshStandardMaterial({ color: 0x6fe6ff, emissive: 0x2fd2ff, emissiveIntensity: 2.2 });
-  const base = new THREE.Mesh(new THREE.CylinderGeometry(PODIUM.r, PODIUM.r + 0.25, 0.7, 96), white);
-  base.position.y = 0.05;
-  base.receiveShadow = true;
-  base.castShadow = true;
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(PODIUM.r + 0.02, 0.05, 8, 128), glow);
-  ring.rotation.x = Math.PI / 2;
-  ring.position.y = 0.36;
-  group.add(base, ring);
-  const buddies = colors.map((c, i) => {
-    const b = createBuddy({ color: c });
-    const a = (i - (colors.length - 1) / 2) * 0.42;
-    b.position.set(Math.sin(a) * 2.4, 0.4, -Math.cos(a) * 2.4 + 1.2);
-    // Face the front of the podium (+z), turned slightly towards the middle.
-    b.rotation.y = -a * 0.6;
-    group.add(b);
-    return b;
-  });
-  group.userData.buddies = buddies;
-  group.userData.update = (t) => {
-    buddies.forEach((b, i) => b.userData.pose('idle', t + i * 0.9));
-  };
   return group;
 }

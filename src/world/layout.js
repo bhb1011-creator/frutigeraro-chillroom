@@ -1,23 +1,22 @@
-// Where things are in the world. Terrain, path, grass and props all read from here.
-import * as THREE from 'three';
+// Where things are in the dream meadow. Terrain, grass and towers all read from here.
 
-export const WATER_LEVEL = 0;
-export const LAKE = { x: -52, z: -8, r: 36 };
-export const CITY = { x: 42, z: -110, r: 62, height: 2.2 };
+export const SPAWN = { x: 0, z: 70 };
 
-// Walkway from the meadow spawn to the south entrance of the city plaza.
-export const PATH_POINTS = [
-  [0, 70],
-  [1, 48],
-  [-6, 28],
-  [3, 6],
-  [16, -16],
-  [28, -32],
-  [38, -46],
-].map(([x, z]) => new THREE.Vector2(x, z));
+// The towers stand together as one cluster in the meadow; the ground under the cluster is levelled.
+export const CLUSTER = { x: 42, z: -110, r: 62 };
 
-// Round white podium in the meadow where the playable buddy figures line up.
-export const PODIUM = { x: -15, z: 56, r: 4.6 };
+// Tower footprints in world coordinates (x, z, radius) — kept free of grass.
+// Tower designs per site live in city/city.js.
+export const TOWER_SITES = {
+  aqua: { x: 42, z: -154, r: 12 },
+  wave: { x: 1, z: -124, r: 14 },
+  capsula: { x: 83, z: -124, r: 10 },
+  terraces: { x: 2, z: -80, r: 13 },
+  helix: { x: 68, z: -150, r: 11 },
+  nimbus: { x: 17, z: -150, r: 9 },
+  twinA: { x: 76, z: -79, r: 8 },
+  twinB: { x: 90, z: -93, r: 8 },
+};
 
 export const TURBINES = [
   [-130, -120],
@@ -25,7 +24,12 @@ export const TURBINES = [
   [-160, -80],
   [125, 40],
   [150, 5],
-  [170, -40],
+  [175, -40],
+  [-95, 95],
+  [-220, -10],
+  [235, -150],
+  [-40, -300],
+  [150, -320],
 ];
 
 // Near terrain is detailed; the far ring is coarse and only shows rolling hills to the horizon.

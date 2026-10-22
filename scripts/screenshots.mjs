@@ -4,7 +4,7 @@ import { chromium } from 'playwright';
 import { createServer } from 'vite';
 import { mkdir } from 'node:fs/promises';
 
-const SHOTS = (process.argv[2] ?? 'ueberblick,spielansicht,figur,figuren,boden,see,stadt,platz,lobby,stock1').split(',');
+const SHOTS = (process.argv[2] ?? 'ueberblick,spielansicht,figur,horizont,boden,hochhaeuser,lobby,stock1').split(',');
 const OUT = new URL('../screenshots/', import.meta.url);
 
 await mkdir(OUT, { recursive: true });
@@ -16,7 +16,7 @@ const browser = await chromium.launch({
 });
 const page = await browser.newPage({ viewport: { width: 1600, height: 900 } });
 page.on('pageerror', (e) => console.error('page error:', e.message));
-page.on('console', (m) => m.type() === 'error' && console.error('console:', m.text()));
+page.on('console', (m) => m.type() === 'error' && console.error('console:', m.text().slice(0, 3000)));
 
 for (const shot of SHOTS) {
   const start = Date.now();

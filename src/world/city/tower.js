@@ -21,7 +21,6 @@ import {
   stairs,
   balustrade,
 } from './parts.js';
-import { signTexture } from './textures.js';
 import { createRng } from '../noise.js';
 
 const GROUND_H = 4.8; // ground floor (lobby) height
@@ -94,10 +93,13 @@ export function buildTower(spec, place, trees) {
   group.rotation.y = place.rotY ?? 0;
   group.updateMatrixWorld(true);
   const rng = createRng(spec.facade?.seed ?? 1);
-  const plant = (species, local, scale = 1) => {
-    const w = group.localToWorld(local.clone());
-    trees.add(species, w.x, w.y, w.z, { scale, rotation: rng() * Math.PI * 2 });
-  };
+  // Without a tree field there are no plants (and no empty planters).
+  const plant = trees
+    ? (species, local, scale = 1) => {
+        const w = group.localToWorld(local.clone());
+        trees.add(species, w.x, w.y, w.z, { scale, rotation: rng() * Math.PI * 2 });
+      }
+    : null;
 
   const outline = spec.outline;
   const floorH = spec.floorH ?? 3.6;
@@ -105,14 +107,16 @@ export function buildTower(spec, place, trees) {
   const panelW = spec.panelW ?? 1.7;
   const ctx = { group, outline, plant, rng, spec };
 
-  buildPodium(ctx);
+  // Towers without a podium (unreachable background giants) start their facade at the ground.
+  const base = spec.podium === false ? 0 : PODIUM_H;
+  if (spec.podium === false) group.add(mesh(prismWall(offsetOutline(outline, 0.1), -12, 0.4), CM.white));
+  else buildPodium(ctx);
 
   // ---------- Office floors ----------
   const bands = [];
   const finMatrices = [];
   const extras = [];
   let current = outline;
-  let y = PODIUM_H;
   const setbacks = [...(spec.setbacks ?? [])].sort((a, b) => a.floor - b.floor);
   const segments = [];
   let start = 0;
@@ -125,12 +129,12 @@ export function buildTower(spec, place, trees) {
 
   for (let si = 0; si < segments.length; si++) {
     const seg = segments[si];
-    const y0 = PODIUM_H + seg.from * floorH;
-    const y1 = PODIUM_H + seg.to * floorH;
+    const y0 = base + seg.from * floorH;
+    const y1 = base + seg.to * floorH;
     if (spec.twist) {
       for (let f = seg.from; f < seg.to; f++) {
         const ol = rotateOutline(seg.outline, f * spec.twist);
-        const fy = PODIUM_H + f * floorH;
+        const fy = base + f * floorH;
         extras.push(mesh(prismWall(ol, fy, fy + floorH, { uScale: panelW * 12, vScale: floorH * 6 }), facade));
         bands.push(prismWall(offsetOutline(ol, 0.25), fy - 0.05, fy + 0.35));
         bands.push(slab(offsetOutline(ol, 0.25), fy - 0.05, 0.05));
@@ -138,7 +142,7 @@ export function buildTower(spec, place, trees) {
     } else {
       extras.push(mesh(prismWall(seg.outline, y0, y1, { uScale: panelW * 12, vScale: floorH * 6 }), facade));
       for (let f = seg.from; f <= seg.to; f++) {
-        const fy = PODIUM_H + f * floorH;
+        const fy = base + f * floorH;
         bands.push(prismWall(offsetOutline(seg.outline, 0.12), fy - 0.12, fy + 0.22));
       }
     }
@@ -154,7 +158,7 @@ export function buildTower(spec, place, trees) {
     }
     if (spec.balconies) {
       for (let f = seg.from + 1; f < seg.to; f++) {
-        const fy = PODIUM_H + f * floorH;
+        const fy = base + f * floorH;
         const ol = seg.outline.map((p) => {
           const a = angleOf(p);
           const d = 0.5 + 0.85 * (0.5 + 0.5 * Math.sin(f * 0.55 + a * 2));
@@ -171,7 +175,7 @@ export function buildTower(spec, place, trees) {
       bands.push(slab(seg.outline, y1, 0.3));
       extras.push(mesh(slab(offsetOutline(seg.outline, -0.6), y1 + 0.3, 0.12), CM.lawn));
       extras.push(balustrade(offsetOutline(seg.outline, -0.15), y1 + 0.3));
-      for (const [x, z] of pointsAlong(offsetOutline(seg.outline, -1.6), 4.5)) {
+      for (const [x, z] of plant ? pointsAlong(offsetOutline(seg.outline, -1.6), 4.5) : []) {
         const inner = radiusAt(next, Math.atan2(z, x));
         if (Math.hypot(x, z) < inner + 0.8) continue;
         plant(rng() < 0.6 ? 'bush' : 'bush2', new THREE.Vector3(x, y1 + 0.42, z), 0.45 + rng() * 0.25);
@@ -179,7 +183,7 @@ export function buildTower(spec, place, trees) {
     }
   }
   const topOutline = segments[segments.length - 1].outline;
-  const topY = PODIUM_H + spec.floors * floorH;
+  const topY = base + spec.floors * floorH;
 
   if (bands.length) group.add(mesh(mergeGeometries(bands.map(clean)), CM.white));
   for (const e of extras) group.add(e);
@@ -227,7 +231,8 @@ function buildPodium({ group, outline, plant, rng, spec }) {
 
   // Floors and the slab between lobby and first floor.
   group.add(mesh(slab(outline, 0, 0.15, { uvScale: 6 }), CM.marble));
-  group.add(mesh(prismWall(offsetOutline(outline, 0.06), 0, 0.3), CM.white));
+  // Plinth reaches below ground so uneven terrain never shows a gap.
+  group.add(mesh(prismWall(offsetOutline(outline, 0.06), -3, 0.3), CM.white));
 
   // Stair void in the first-floor slab.
   const stairRun = 8;
@@ -287,7 +292,7 @@ function buildPodium({ group, outline, plant, rng, spec }) {
   group.add(mesh(slab(offsetOutline(outline, 1.4), PODIUM_H, 0.5, { bevel: 0.08 }), CM.white));
   group.add(mesh(prismWall(offsetOutline(outline, 1.25), PODIUM_H - 0.06, PODIUM_H - 0.01, {}), CM.aquaGlow, { cast: false }));
 
-  // Entrance canopy with sign and two slim columns.
+  // Entrance canopy on two slim columns.
   const ent = polar(entrance, R);
   const canopy = new THREE.Group();
   canopy.position.copy(ent);
@@ -303,12 +308,6 @@ function buildPodium({ group, outline, plant, rng, spec }) {
     col.position.set(s * 2.9, 2.0, 3.25);
     canopy.add(col);
   }
-  const sign = mesh(new THREE.PlaneGeometry(4.2, 1.05), new THREE.MeshStandardMaterial({ map: signTexture(spec.name ?? 'Aero', spec.facade?.hue ?? 200), emissive: 0xffffff, emissiveMap: signTexture(spec.name ?? 'Aero', spec.facade?.hue ?? 200), emissiveIntensity: 0.5 }), { cast: false });
-  sign.position.set(0, 4.75, 0.25);
-  canopy.add(sign);
-  const mat = box(3.2, 0.03, 2.2, CM.dark);
-  mat.position.set(0, 0.02, 0.6);
-  canopy.add(mat);
   group.add(canopy);
 
   // ---------- Ground floor interior ----------
@@ -364,7 +363,7 @@ function buildPodium({ group, outline, plant, rng, spec }) {
     colMats.push(new THREE.Matrix4().makeTranslation(p.x, p.y + 0.07, p.z));
   }
   group.add(instanced(colGeo, CM.white, colMats));
-  for (const a of [entrance - 0.75, entrance + 0.32, entrance + Math.PI]) {
+  for (const a of plant ? [entrance - 0.75, entrance + 0.32, entrance + Math.PI] : []) {
     const p = polar(a, radiusAt(outline, a) * 0.66, 0.15);
     if (hasStairs && distToSegment(p, stairStart, stairDir, stairRun) < stairW + 1) continue;
     const pl = planter(0.75, 0.9);
@@ -455,7 +454,7 @@ function buildPodium({ group, outline, plant, rng, spec }) {
   }
   group.add(room);
   // A couple of plants upstairs.
-  for (const a of [cafeA + 0.9, officeA + 1.2]) {
+  for (const a of plant ? [cafeA + 0.9, officeA + 1.2] : []) {
     const p = polar(a, radiusAt(outline, a) * 0.78, ff);
     if (hasStairs && distToSegment(p, stairStart, stairDir, stairRun) < stairW + 1) continue;
     const pl = planter(0.5, 0.7);

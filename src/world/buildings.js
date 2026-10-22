@@ -10,33 +10,6 @@ function mesh(geo, mat, { cast = true, receive = true } = {}) {
   return m;
 }
 
-// White pebble-shaped eco house with round windows and a grass roof.
-function ecoPod(scale = 1) {
-  const g = new THREE.Group();
-  const shell = mesh(new THREE.SphereGeometry(3, 40, 24), M.white);
-  shell.scale.set(1.4, 0.8, 1);
-  shell.position.y = 1.2;
-  g.add(shell);
-  const roof = mesh(new THREE.SphereGeometry(3.05, 40, 16, 0, Math.PI * 2, 0, Math.PI / 4), M.leaf);
-  roof.scale.set(1.4, 0.8, 1);
-  roof.position.y = 1.25;
-  g.add(roof);
-  const winGeo = new THREE.SphereGeometry(0.75, 20, 14);
-  for (let i = 0; i < 3; i++) {
-    const w = mesh(winGeo, M.glassCore);
-    w.scale.set(1, 1, 0.35);
-    w.position.set(-2.2 + i * 2.2, 1.5, 2.65 - Math.abs(i - 1) * 0.35);
-    g.add(w);
-  }
-  const door = mesh(new THREE.CapsuleGeometry(0.55, 1, 6, 16), M.aqua);
-  door.scale.z = 0.4;
-  door.position.set(3.65, 0.9, 0.6);
-  door.rotation.y = Math.PI / 2;
-  g.add(door);
-  g.scale.setScalar(scale);
-  return g;
-}
-
 function windTurbine(height = 26) {
   const g = new THREE.Group();
   const tower = mesh(new THREE.CylinderGeometry(0.35, 0.9, height, 16), M.white);
@@ -64,7 +37,7 @@ function windTurbine(height = 26) {
   return g;
 }
 
-// Countryside buildings outside the city: eco pods along the path and wind turbines on the hills.
+// Wind turbines on the hills around the meadow.
 export function createBuildings() {
   const group = new THREE.Group();
   group.name = 'countryside';
@@ -76,11 +49,6 @@ export function createBuildings() {
     if (obj.userData.update) animated.push(obj);
     return obj;
   };
-
-  at(ecoPod(1), -15, 42, 0.5);
-  at(ecoPod(0.85), 16, 32, -2.4);
-  at(ecoPod(1.1), 17, 8, 1.2);
-  at(ecoPod(0.9), 22, 58, -1.7);
 
   for (const [x, z] of TURBINES) {
     at(windTurbine(30), x, z, Math.atan2(-x, -z) * 0.2 + 0.4);
