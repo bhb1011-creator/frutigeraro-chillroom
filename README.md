@@ -5,6 +5,8 @@ Hügeln, ein Block spiegelnder Glashochhäuser, Windräder, hohe Haufenwolken un
 „Buddy“-Figuren im Stil der alten Messenger-Icons. In der Ferne ragt eine Skyline aus riesigen
 Türmen hinter den Hügeln hervor, die man nie erreicht. Gebaut mit [Three.js](https://threejs.org/) und [Vite](https://vitejs.dev/).
 
+**Direkt im Browser spielen:** https://bhb1011-creator.github.io/frutigeraro-chillroom/
+
 ## Screenshots
 
 | Überblick | Spielansicht |
@@ -25,6 +27,9 @@ npm run dev          # Spiel im Browser starten
 npm run screenshots  # Screenshots neu rendern -> screenshots/
 npm test             # Physik-Test: Tür, Wand, Treppe, Sprung
 ```
+
+Jeder Push auf `main` baut das Spiel und veröffentlicht es automatisch auf GitHub Pages
+(`.github/workflows/pages.yml`).
 
 ## Steuerung
 
