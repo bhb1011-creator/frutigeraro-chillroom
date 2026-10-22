@@ -16,6 +16,9 @@ export const PATH_POINTS = [
   [38, -46],
 ].map(([x, z]) => new THREE.Vector2(x, z));
 
+// Round white podium in the meadow where the playable buddy figures line up.
+export const PODIUM = { x: -15, z: 56, r: 4.6 };
+
 export const TURBINES = [
   [-130, -120],
   [-100, -150],

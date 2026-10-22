@@ -13,10 +13,10 @@ import { createWater, createFish } from './world/water.js';
 import { createBuildings } from './world/buildings.js';
 import { TreeField } from './world/trees.js';
 import { placeTrees } from './world/nature.js';
-import { createGlassPerson } from './world/character.js';
+import { createBuddy, createBuddyPodium, BUDDY_COLORS } from './world/character.js';
 import { createCity, LAWNS, onLawn } from './world/city/city.js';
 import { allLoaded } from './world/assets.js';
-import { CITY, LAKE } from './world/layout.js';
+import { CITY, LAKE, PODIUM } from './world/layout.js';
 import { SHOTS } from './shots.js';
 
 const params = new URLSearchParams(location.search);
@@ -119,7 +119,8 @@ placeTrees(trees);
 add(createCity(trees));
 scene.add(trees.build());
 
-const meadowAccept = (x, z, h) => h > 0.9 && h < 45 && distanceToPath(x, z) >= 1.75 && distanceToCity(x, z) > CITY.r + 1;
+const meadowAccept = (x, z, h) =>
+  h > 0.9 && h < 45 && distanceToPath(x, z) >= 1.75 && distanceToCity(x, z) > CITY.r + 1 && Math.hypot(x - PODIUM.x, z - PODIUM.z) > PODIUM.r + 0.2;
 const plazaY = CITY.height + 0.14;
 const grassPromises = [
   createGrass({
@@ -140,28 +141,33 @@ const grassPromises = [
   }),
 ];
 
-// The player: a glass figure on the path near the meadow spawn.
+// The player: a buddy figure on the path near the meadow spawn (?figur=rot|blau|gold|tuerkis|gruen|pink|glas).
 const spawnT = 0.04;
 const spawn = pathCurve.getPointAt(spawnT);
 const ahead = pathCurve.getPointAt(spawnT + 0.02);
-const character = await createGlassPerson();
-character.position.set(spawn.x, heightAt(spawn.x, spawn.z) + 0.12, spawn.z);
+const playerColor = params.get('figur') in BUDDY_COLORS ? params.get('figur') : 'gruen';
+const character = createBuddy({ color: playerColor });
+character.position.set(spawn.x, heightAt(spawn.x, spawn.z) + 0.1, spawn.z);
 character.rotation.y = Math.atan2(ahead.x - spawn.x, ahead.z - spawn.z);
 add(character);
 
-// Glass people walking and standing around the plaza.
+// The line-up of playable figures in the meadow.
+add(createBuddyPodium());
+
+// Buddies walking and standing around the plaza.
 const npcSpots = [
-  [-4, 26, 2.6, 'walk', 0xe6fff0, 0x7dff9a],
-  [5, 36, -0.4, 'idle', 0xe8f4ff, 0x6fd0ff],
-  [-12, 18, 1.2, 'idle', 0xfff0fa, 0xff9ad8],
-  [9, 21, -2.4, 'walk', 0xe0fbff, 0x5fe0ff],
-  [-1.5, -31, 3.0, 'idle', 0xeafff2, 0x8affb0],
-  [16, -6, -1.8, 'walk', 0xe8f4ff, 0x6fd0ff],
-  [-17, -4, 1.0, 'idle', 0xe0fbff, 0x5fe0ff],
+  [-4, 26, 2.6, 'walk', 'blau'],
+  [5, 36, -0.4, 'idle', 'rot'],
+  [-12, 18, 1.2, 'idle', 'gold'],
+  [9, 21, -2.4, 'walk', 'tuerkis'],
+  [-1.5, -31, 3.0, 'idle', 'pink'],
+  [16, -6, -1.8, 'walk', 'glas'],
+  [-17, -4, 1.0, 'idle', 'blau'],
+  [3, 12, 0.6, 'run', 'gruen'],
 ];
 const npcs = [];
-for (const [x, z, rot, anim, tint, rim] of npcSpots) {
-  const p = await createGlassPerson({ tint, rim, core: rim });
+for (const [x, z, rot, anim, color] of npcSpots) {
+  const p = createBuddy({ color });
   p.position.set(CITY.x + x, CITY.height + 0.05, CITY.z + z);
   p.rotation.y = rot;
   p.userData.anim = anim;

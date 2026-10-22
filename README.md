@@ -1,8 +1,8 @@
 # Frutiger Aero Chillroom
 
 Eine detaillierte 3D-Welt im **Frutiger-Aero**-Stil (ca. 2005–2013): spiegelnde Glastürme, Wasser,
-sattgrüne Wiesen, ein blauer Himmel mit hohen Haufenwolken und eine durchsichtige Glasfigur,
-die durch die Landschaft läuft. Gebaut mit [Three.js](https://threejs.org/) und [Vite](https://vitejs.dev/).
+sattgrüne Wiesen, ein blauer Himmel mit hohen Haufenwolken und glänzende „Buddy“-Figuren im Stil
+der alten Messenger-Icons, die durch die Landschaft laufen. Gebaut mit [Three.js](https://threejs.org/) und [Vite](https://vitejs.dev/).
 
 ## Screenshots
 
@@ -11,12 +11,12 @@ die durch die Landschaft läuft. Gebaut mit [Three.js](https://threejs.org/) und
 | ![Überblick](screenshots/ueberblick.png) | ![Spielansicht](screenshots/spielansicht.png) |
 | **See** | **Stadt** |
 | ![See](screenshots/see.png) | ![Stadt](screenshots/stadt.png) |
-| **Platz von oben** | **Glasfigur** |
+| **Platz von oben** | **Spielfigur** |
 | ![Platz](screenshots/platz.png) | ![Figur](screenshots/figur.png) |
 | **Lobby (Erdgeschoss)** | **Erster Stock** |
 | ![Lobby](screenshots/lobby.png) | ![Erster Stock](screenshots/stock1.png) |
-| **Gras aus Bodenhöhe** | |
-| ![Boden](screenshots/boden.png) | |
+| **Figuren-Auswahl** | **Gras aus Bodenhöhe** |
+| ![Figuren](screenshots/figuren.png) | ![Boden](screenshots/boden.png) |
 
 ## Starten
 
@@ -27,7 +27,8 @@ npm run screenshots  # Screenshots neu rendern -> screenshots/
 ```
 
 Eine einzelne Ansicht direkt öffnen: `http://localhost:5173/?shot=lobby`
-(Namen siehe `src/shots.js`).
+(Namen siehe `src/shots.js`). Farbe der Spielfigur wählen: `?figur=blau` (blau, rot, gold, tuerkis,
+gruen, pink, glas).
 
 ## Was drin ist
 
@@ -47,8 +48,10 @@ Eine einzelne Ansicht direkt öffnen: `http://localhost:5173/?shot=lobby`
   Café, gläserner Besprechungsraum).
 - **Platz**: Globus-Brunnen mit Wasserbögen, Rasenflächen, Boulevard mit Laternen, Bänken,
   Baumkübeln, Info-Terminals, Wasserbecken, Ringbahn mit Station und Zug, Biodom.
-- **Glasfiguren**: durchsichtige, schillernde Figuren mit Rand-Glow und leuchtendem Kern,
-  animiert (idle/walk/run) — Spielfigur und Passanten.
+- **Buddy-Figuren**: runder Kopf auf glockenförmigem Körper mit weichen Falten, glänzender
+  Candy-Metallic-Lack in sieben Farben (auch eine Glas-Variante). Prozedural animiert: Atmen,
+  Watscheln beim Gehen, Hüpfen beim Laufen, Squash & Stretch. Spielfigur, Figuren-Podest
+  in der Wiese und Passanten in der Stadt.
 
 ## Aufbau
 
@@ -57,7 +60,7 @@ Eine einzelne Ansicht direkt öffnen: `http://localhost:5173/?shot=lobby`
 - `src/world/terrain.js`: Höhenfunktion, Bodenshader, Weg
 - `src/world/grass.js`, `trees.js`, `nature.js`: Gras, Bäume, Verteilung
 - `src/world/water.js`: Wasser und Fische
-- `src/world/character.js`: Glasfiguren
+- `src/world/character.js`: Buddy-Figuren und Figuren-Podest
 - `src/world/city/`: Hochhaus-Generator (`tower.js`), Bauteile und Möbel (`parts.js`),
   Stadtmöbel (`props.js`), prozedurale Texturen (`textures.js`), Stadtplan (`city.js`)
 - `src/world/buildings.js`: Öko-Häuser und Windräder
@@ -67,6 +70,6 @@ Eine einzelne Ansicht direkt öffnen: `http://localhost:5173/?shot=lobby`
 
 - Bäume, Rinden-/Blatttexturen, Bodentextur, Grasbüschel, Erde: [EZ-Tree](https://github.com/dgreenheck/ez-tree)
   von Daniel Greenheck (MIT; Rinden teils von Poly Haven/TextureCan).
-- `Xbot.glb` (Figur mit Animationen), `waternormals.jpg`, `grasslight-big.jpg`: aus den
-  [Three.js-Beispielen](https://github.com/mrdoob/three.js/tree/dev/examples). Xbot stammt ursprünglich
-  von Mixamo; für eine Veröffentlichung des Spiels sollte die Lizenz geprüft oder die Figur ersetzt werden.
+- `waternormals.jpg`, `grasslight-big.jpg`: aus den
+  [Three.js-Beispielen](https://github.com/mrdoob/three.js/tree/dev/examples) (MIT).
+- Die Buddy-Figuren sind komplett im Code modelliert, ohne externe Modelle.

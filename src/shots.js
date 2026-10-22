@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { heightAt } from './world/terrain.js';
-import { LAKE, CITY } from './world/layout.js';
+import { LAKE, CITY, PODIUM } from './world/layout.js';
 
 const v = (x, y, z) => new THREE.Vector3(x, y, z);
 const ground = (x, z, up) => v(x, Math.max(heightAt(x, z), 0) + up, z);
@@ -28,14 +28,19 @@ export const SHOTS = {
     const fwd = v(Math.sin(ch.rotation.y), 0, Math.cos(ch.rotation.y));
     const side = v(fwd.z, 0, -fwd.x);
     return {
-      position: p.clone().addScaledVector(fwd, 2.6).addScaledVector(side, 0.9).add(v(0, 1.35, 0)),
-      target: p.clone().add(v(0, 1.0, 0)),
+      position: p.clone().addScaledVector(fwd, 2.4).addScaledVector(side, 0.8).add(v(0, 1.25, 0)),
+      target: p.clone().add(v(0, 0.75, 0)),
       fov: 45,
     };
   },
+  figuren: () => ({
+    position: ground(PODIUM.x + 0.3, PODIUM.z + 4.3, 1.55),
+    target: ground(PODIUM.x, PODIUM.z - 0.6, 1.1),
+    fov: 50,
+  }),
   boden: () => ({
-    position: ground(-14, 56, 0.45),
-    target: ground(-30, 40, 0.8),
+    position: ground(-26, 66, 0.45),
+    target: ground(-42, 50, 0.8),
     fov: 60,
   }),
   see: () => ({

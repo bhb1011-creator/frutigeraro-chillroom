@@ -4,7 +4,7 @@ import { chromium } from 'playwright';
 import { createServer } from 'vite';
 import { mkdir } from 'node:fs/promises';
 
-const SHOTS = (process.argv[2] ?? 'ueberblick,spielansicht,figur,boden,see,stadt,platz,lobby,stock1').split(',');
+const SHOTS = (process.argv[2] ?? 'ueberblick,spielansicht,figur,figuren,boden,see,stadt,platz,lobby,stock1').split(',');
 const OUT = new URL('../screenshots/', import.meta.url);
 
 await mkdir(OUT, { recursive: true });

@@ -1,144 +1,201 @@
 import * as THREE from 'three';
-import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
-import { loadModel } from './assets.js';
+import { PODIUM } from './layout.js';
+import { heightAt } from './terrain.js';
 
-// Translucent glass people, the classic Frutiger Aero figure: a clear, iridescent body with an
-// aqua rim glow and a softly glowing core in the chest.
+// "Buddy" figures in the style of the classic messenger icons: a round head on a soft,
+// bell-shaped body with draped folds, finished in glossy candy-metallic paint.
+// They have no limbs, so all motion is procedural: breathing, waddling, squash and stretch.
 
-function glassMaterial(tint) {
+export const BUDDY_COLORS = {
+  blau: 0x1230c8,
+  rot: 0xc8160a,
+  gold: 0xb89a10,
+  tuerkis: 0x1a96aa,
+  gruen: 0x4cae14,
+  pink: 0xe0409a,
+  glas: 0xbff2ff,
+};
+
+const BODY_H = 0.9;
+const HEAD_R = 0.3;
+
+// Silhouette of the body (radius, height), bottom to neck.
+const PROFILE = [
+  [0.0, 0.0],
+  [0.4, 0.0],
+  [0.52, 0.045],
+  [0.565, 0.13],
+  [0.56, 0.25],
+  [0.525, 0.4],
+  [0.455, 0.55],
+  [0.345, 0.68],
+  [0.22, 0.78],
+  [0.14, 0.845],
+  [0.1, 0.88],
+  [0.0, BODY_H],
+];
+
+let bodyGeometry = null;
+let headGeometry = null;
+
+function smoothstep(a, b, x) {
+  const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+}
+
+function buildBody() {
+  const curve = new THREE.CatmullRomCurve3(PROFILE.map(([r, y]) => new THREE.Vector3(r, y, 0)), false, 'centripetal');
+  const pts = curve.getPoints(64).map((p) => new THREE.Vector2(Math.max(0, p.x), p.y));
+  const geo = new THREE.LatheGeometry(pts, 128);
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i);
+    const y = pos.getY(i);
+    const z = pos.getZ(i);
+    const r = Math.hypot(x, z);
+    if (r < 1e-5) continue;
+    const a = Math.atan2(z, x);
+    const h = y / BODY_H;
+    // Six soft lobes separated by narrow creases that twist slightly as they run down the body,
+    // strongest around the belly and fading out at the neck and the flat base.
+    const amount = 0.16 * smoothstep(0.0, 0.16, h) * smoothstep(0.93, 0.4, h);
+    const crease = 1 - Math.pow(Math.abs(Math.sin(3 * a + h * 0.9 + 0.3 * Math.sin(2 * a))), 0.45);
+    const wobble = 0.018 * Math.sin(2 * a + 1.3) * smoothstep(0.0, 0.5, h);
+    const k = 1 - amount * crease + wobble;
+    pos.setX(i, x * k);
+    pos.setZ(i, z * k);
+  }
+  geo.computeVertexNormals();
+  return geo;
+}
+
+function buddyMaterial(color) {
+  const glass = color === BUDDY_COLORS.glas;
   return new THREE.MeshPhysicalMaterial({
-    color: tint,
-    metalness: 0,
-    roughness: 0.05,
-    // Plain alpha instead of transmission: looks the same at this size and saves a full extra render pass.
-    transparent: true,
-    opacity: 0.42,
+    color,
+    metalness: glass ? 0 : 0.78,
+    roughness: glass ? 0.03 : 0.17,
     clearcoat: 1,
-    clearcoatRoughness: 0.02,
-    iridescence: 0.45,
-    iridescenceIOR: 1.3,
-    iridescenceThicknessRange: [180, 600],
-    envMapIntensity: 1.8,
-    specularIntensity: 1,
+    clearcoatRoughness: 0.04,
+    envMapIntensity: glass ? 2 : 1.35,
+    iridescence: glass ? 0.6 : 0.08,
+    transparent: glass,
+    opacity: glass ? 0.45 : 1,
   });
 }
 
-function rimMaterial(color) {
-  return new THREE.ShaderMaterial({
-    uniforms: { uColor: { value: new THREE.Color(color) }, uPower: { value: 2.2 }, uStrength: { value: 1.6 } },
-    vertexShader: /* glsl */ `
-      #include <common>
-      #include <skinning_pars_vertex>
-      varying vec3 vN;
-      varying vec3 vV;
-      void main() {
-        #include <beginnormal_vertex>
-        #include <skinbase_vertex>
-        #include <skinnormal_vertex>
-        #include <begin_vertex>
-        #include <skinning_vertex>
-        vec4 mv = modelViewMatrix * vec4(transformed, 1.0);
-        vN = normalize(normalMatrix * objectNormal);
-        vV = -mv.xyz;
-        gl_Position = projectionMatrix * mv;
-      }
-    `,
-    fragmentShader: /* glsl */ `
-      uniform vec3 uColor;
-      uniform float uPower;
-      uniform float uStrength;
-      varying vec3 vN;
-      varying vec3 vV;
-      void main() {
-        float f = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), uPower);
-        gl_FragColor = vec4(uColor * f * uStrength, f);
-        #include <colorspace_fragment>
-      }
-    `,
-    transparent: true,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
-  });
-}
-
-let source = null;
-async function loadSource() {
-  source ??= loadModel('Xbot.glb');
-  return source;
-}
+const STATES = {
+  idle: { freq: 2.2, sway: 0.0, bounce: 0.0, lean: 0.0, breath: 1 },
+  walk: { freq: 9.0, sway: 0.13, bounce: 0.07, lean: 0.07, breath: 0.3 },
+  run: { freq: 15.0, sway: 0.09, bounce: 0.15, lean: 0.2, breath: 0.2 },
+};
 
 /**
- * Creates one glass figure. Returns a Group with userData:
- *  mixer, actions { idle, walk, run }, play(name), update(dt), pose(name, time)
+ * Creates one buddy. `color` is a hex value or a key of BUDDY_COLORS. Returns a Group with userData:
+ *  play(name), update(dt), pose(name, time) — the same interface the game loop already uses.
  */
-export async function createGlassPerson({ tint = 0xdff8ff, rim = 0x5fe0ff, core = 0x7dffb0 } = {}) {
-  const gltf = await loadSource();
-  const root = cloneSkinned(gltf.scene);
-  const body = glassMaterial(tint);
-  const joints = glassMaterial(new THREE.Color(tint).lerp(new THREE.Color(0x7fe0ff), 0.6));
-  const rimMat = rimMaterial(rim);
-  const skinned = [];
-  root.traverse((o) => {
-    if (o.isSkinnedMesh) skinned.push(o);
-  });
-  for (const o of skinned) {
-    o.material = o.material.name?.includes('Joints') ? joints : body;
-    o.castShadow = true;
-    o.receiveShadow = false;
-    o.frustumCulled = false;
-    const glow = new THREE.SkinnedMesh(o.geometry, rimMat);
-    glow.bind(o.skeleton, o.bindMatrix);
-    glow.frustumCulled = false;
-    glow.renderOrder = 5;
-    o.parent.add(glow);
-  }
+export function createBuddy({ color = 'gruen', scale = 1 } = {}) {
+  bodyGeometry ??= buildBody();
+  headGeometry ??= new THREE.SphereGeometry(HEAD_R, 64, 48);
+  const hex = typeof color === 'string' ? BUDDY_COLORS[color] ?? BUDDY_COLORS.gruen : color;
+  const mat = buddyMaterial(hex);
 
-  // Glowing core inside the chest.
-  let chest = null;
-  root.updateMatrixWorld(true);
-  root.traverse((o) => {
-    if (o.isBone && /Spine2$/.test(o.name)) chest = o;
-  });
-  if (chest) {
-    const coreMesh = new THREE.Mesh(
-      new THREE.SphereGeometry(0.075, 24, 16),
-      new THREE.MeshStandardMaterial({ color: core, emissive: core, emissiveIntensity: 3 }),
-    );
-    // Bones are in centimeter-ish units in this rig; scale the offset to the bone's world size.
-    coreMesh.scale.setScalar(1 / chest.getWorldScale(new THREE.Vector3()).x);
-    coreMesh.position.set(0, 5, 4);
-    chest.add(coreMesh);
-  }
-
-  const mixer = new THREE.AnimationMixer(root);
-  const actions = {};
-  for (const clip of gltf.animations) {
-    if (['idle', 'walk', 'run'].includes(clip.name)) actions[clip.name] = mixer.clipAction(clip);
-  }
-  let current = null;
   const group = new THREE.Group();
-  group.name = 'glass-person';
-  group.add(root);
+  group.name = 'buddy';
+  // Pivot at the base so sway and squash happen around the feet.
+  const pivot = new THREE.Group();
+  group.add(pivot);
+  const body = new THREE.Mesh(bodyGeometry, mat);
+  body.castShadow = true;
+  body.receiveShadow = true;
+  pivot.add(body);
+  const neck = new THREE.Group();
+  neck.position.y = BODY_H - 0.04;
+  pivot.add(neck);
+  const head = new THREE.Mesh(headGeometry, mat);
+  head.position.y = HEAD_R * 0.86;
+  head.scale.set(1, 0.97, 1);
+  head.castShadow = true;
+  head.receiveShadow = true;
+  neck.add(head);
+  group.scale.setScalar(scale);
+
+  // Blended animation parameters; `target` is the state being faded towards.
+  const params = { ...STATES.idle };
+  let target = STATES.idle;
+  let phase = 0;
+  let time = 0;
+
+  function apply() {
+    const step = Math.sin(phase);
+    const breathe = Math.sin(time * STATES.idle.freq) * params.breath;
+    pivot.rotation.z = step * params.sway;
+    pivot.rotation.x = params.lean;
+    pivot.position.y = Math.abs(step) * params.bounce;
+    // Squash when landing on a foot, stretch in between; plus slow breathing.
+    const squash = Math.cos(2 * phase) * params.bounce * 0.5 + breathe * 0.018;
+    pivot.scale.set(1 + squash * 0.6, 1 - squash, 1 + squash * 0.6);
+    // The head lags behind the body and looks around a little when idle.
+    neck.rotation.z = -step * params.sway * 0.6;
+    neck.rotation.x = -params.lean * 0.5 + Math.cos(2 * phase) * params.bounce * 0.3;
+    neck.rotation.y = Math.sin(time * 0.45) * 0.35 * params.breath;
+  }
+
   group.userData = {
-    mixer,
-    actions,
-    play(name, fade = 0.3) {
-      const next = actions[name];
-      if (!next || next === current) return;
-      next.reset().play();
-      if (current) current.crossFadeTo(next, fade, false);
-      current = next;
+    state: 'idle',
+    play(name) {
+      if (!STATES[name]) return;
+      group.userData.state = name;
+      target = STATES[name];
     },
     update(dt) {
-      mixer.update(dt);
+      time += dt;
+      const k = 1 - Math.exp(-dt * 6);
+      for (const key of Object.keys(params)) params[key] += (target[key] - params[key]) * k;
+      phase += dt * params.freq;
+      apply();
     },
-    pose(name, time) {
-      mixer.stopAllAction();
-      current = actions[name];
-      current.reset().play();
-      mixer.setTime(time);
+    pose(name, t) {
+      target = STATES[name] ?? STATES.idle;
+      Object.assign(params, target);
+      group.userData.state = name;
+      time = t;
+      phase = t * target.freq;
+      apply();
     },
   };
-  group.userData.play('idle');
+  apply();
+  return group;
+}
+
+// Character line-up: a glossy podium with one buddy of each colour, facing the path.
+export function createBuddyPodium(colors = ['blau', 'rot', 'gold', 'tuerkis', 'gruen']) {
+  const group = new THREE.Group();
+  group.name = 'buddy-podium';
+  const y = heightAt(PODIUM.x, PODIUM.z);
+  group.position.set(PODIUM.x, y, PODIUM.z);
+  const white = new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.18, clearcoat: 1, clearcoatRoughness: 0.04 });
+  const glow = new THREE.MeshStandardMaterial({ color: 0x6fe6ff, emissive: 0x2fd2ff, emissiveIntensity: 2.2 });
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(PODIUM.r, PODIUM.r + 0.25, 0.7, 96), white);
+  base.position.y = 0.05;
+  base.receiveShadow = true;
+  base.castShadow = true;
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(PODIUM.r + 0.02, 0.05, 8, 128), glow);
+  ring.rotation.x = Math.PI / 2;
+  ring.position.y = 0.36;
+  group.add(base, ring);
+  const buddies = colors.map((c, i) => {
+    const b = createBuddy({ color: c });
+    const a = (i - (colors.length - 1) / 2) * 0.42;
+    b.position.set(Math.sin(a) * 2.4, 0.4, -Math.cos(a) * 2.4 + 1.2);
+    // Face the front of the podium (+z), turned slightly towards the middle.
+    b.rotation.y = -a * 0.6;
+    group.add(b);
+    return b;
+  });
+  group.userData.buddies = buddies;
+  group.userData.update = (t) => {
+    buddies.forEach((b, i) => b.userData.pose('idle', t + i * 0.9));
+  };
   return group;
 }

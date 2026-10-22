@@ -1,6 +1,6 @@
 import { createRng, fbm } from './noise.js';
 import { heightAt, distanceToPath, distanceToCity, distanceToLake } from './terrain.js';
-import { CITY, LAKE } from './layout.js';
+import { CITY, LAKE, PODIUM } from './layout.js';
 import { MEADOW_SPECIES } from './trees.js';
 
 const ECO_PODS = [
@@ -17,6 +17,7 @@ function free(x, z, { pathGap = 5, cityGap = 16 } = {}) {
   if (distanceToCity(x, z) < CITY.r + cityGap) return null;
   if (distanceToLake(x, z) < LAKE.r * 1.08) return null;
   if (Math.hypot(x, z - 62) < 14) return null;
+  if (Math.hypot(x - PODIUM.x, z - PODIUM.z) < PODIUM.r + 5) return null;
   if (ECO_PODS.some(([px, pz]) => Math.hypot(x - px, z - pz) < 8)) return null;
   return h;
 }
