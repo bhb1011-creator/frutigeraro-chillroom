@@ -1,10 +1,10 @@
 import * as THREE from 'three';
-import { CLUSTER, TOWER_SITES, SPAWN } from '../layout.js';
+import { CLUSTER, TOWER_SITES, SPAWN, SKYLINE_CENTER as SKYLINE_SITE } from '../layout.js';
 import { heightAt, CLUSTER_Y } from '../terrain.js';
 import { buildTower, PODIUM_H } from './tower.js';
 import { CM, mesh, box, circle, roundedRect, slab } from './parts.js';
 import { mergeStatic } from './merge.js';
-import { arenaCrown, duelTerminal } from './arena.js';
+import { arenaCrown, duelTerminal, ARENA } from './arena.js';
 
 // ---------- Tower crowns (s scales them up for the giants) ----------
 
@@ -133,7 +133,7 @@ const CLUSTER_TOWERS = {
 // A far-away city of giant towers, all standing together. Seen from the meadow it sits to the left
 // of the walkable cluster. Their feet are sunk below the hills, so the skyline only rises from
 // behind the horizon and can never be reached.
-const SKYLINE_CENTER = new THREE.Vector2(-380, -1500);
+const SKYLINE_CENTER = new THREE.Vector2(SKYLINE_SITE.x, SKYLINE_SITE.z);
 // u runs across the line of sight (left/right), v along it (front/back), in metres.
 const g = (spec) => ({ floorH: 6.75, panelW: 2.6, ...spec });
 const SKYLINE = [
@@ -182,15 +182,31 @@ function clusterColliders(cluster) {
     loop(c.outline, base - 1, base + c.topY, (i) => p.door[i]);
     loop(c.outline, base + 3.4, base + c.topY, (i) => !p.door[i]);
     loop(p.core, base, base + p.ceiling);
-    loop(p.room, base + p.first, base + p.first + 2.9);
+    if (p.room) loop(p.room, base + p.first, base + p.first + 2.9);
     for (const col of p.columns) out.circles.push({ x: w(col)[0], z: w(col)[1], r: 0.32, y0: base, y1: base + p.ceiling });
     for (const col of p.canopyColumns) out.circles.push({ x: w(col)[0], z: w(col)[1], r: 0.15, y0: base, y1: base + 4 });
+    for (const o of p.obstacles) {
+      const y = base + (o.level === 'first' ? p.first : p.ground);
+      const [x, z] = w([o.x, o.z]);
+      out.circles.push({ x, z, r: o.r, y0: y, y1: y + 1.4 });
+    }
     out.floors.push({ outline, y: base + p.ground });
     out.floors.push({ outline, holes: p.hole ? [p.hole.map(w)] : [], y: base + p.first });
     if (p.stairs) {
       const [x, z] = w([p.stairs.x, p.stairs.z]);
       const d = new THREE.Vector3(p.stairs.dx, 0, p.stairs.dz).transformDirection(m);
       out.ramps.push({ x, z, dx: d.x, dz: d.z, run: p.stairs.run, width: p.stairs.width, y0: base + p.ground, y1: base + p.first });
+      // Closed sides and back under the stair, so nobody walks through or under it.
+      const side = new THREE.Vector3(-d.z, 0, d.x).multiplyScalar(p.stairs.width / 2 + 0.1);
+      const start = new THREE.Vector3(x, 0, z);
+      const end = start.clone().addScaledVector(d, p.stairs.run);
+      const corners = [start.clone().sub(side), end.clone().sub(side), end.clone().add(side), start.clone().add(side)];
+      for (let i = 0; i < 3; i++) {
+        const a = corners[i];
+        const b = corners[i + 1];
+        // Sides block from just above the bottom step; the back end blocks fully.
+        out.walls.push({ ax: a.x, az: a.z, bx: b.x, bz: b.z, y0: base + (i === 1 ? 0 : 0.6), y1: base + p.first - 0.3 });
+      }
       // Railing around the stair void on three sides; the top of the stair stays open.
       const h = p.hole;
       loop([h[3], h[0], h[1], h[2]], base + p.first, base + p.first + 1.05, (i) => i === 3);
@@ -219,7 +235,7 @@ export function createCity() {
     if (key === 'arena') {
       // Duel terminal in the lobby, a few metres inside the door.
       const terminal = duelTerminal();
-      terminal.position.set(0, 0.15, 7.4);
+      terminal.position.set(-1.6, 0.15, 7.6);
       tower.add(terminal);
       tower.userData.terminal = terminal;
     }
@@ -247,6 +263,25 @@ export function createCity() {
   }
   cluster.updateMatrixWorld(true);
   city.userData.colliders = clusterColliders(cluster);
+
+  // Where the duel happens, in world space, for the duel game and the lobby terminal.
+  const arenaTower = cluster.children.find((t) => t.userData.arena);
+  const arenaData = arenaTower.userData.arena;
+  const toW = (x, y, z) => arenaTower.localToWorld(new THREE.Vector3(x, y, z));
+  const terminal = arenaTower.userData.terminal.getWorldPosition(new THREE.Vector3());
+  city.userData.arena = {
+    center: toW(0, arenaData.platformY, 0),
+    poolY: toW(0, arenaData.poolY, 0).y,
+    radius: ARENA.platformRadius,
+    // Direction from one start spot to the other.
+    axis: toW(1, 0, 0).sub(toW(0, 0, 0)).normalize(),
+    terminal,
+    // The terminal's screen faces the door.
+    terminalFacing: toW(0, 0, 1).sub(toW(0, 0, 0)).normalize(),
+    lobbyFloorY: toW(0, 0.15, 0).y,
+    tower: new THREE.Vector3(TOWER_SITES.arena.x, 0, TOWER_SITES.arena.z),
+  };
+  city.userData.colliders.circles.push({ x: terminal.x, z: terminal.z, r: 0.85, y0: terminal.y - 1, y1: terminal.y + 3 });
   mergeStatic(cluster);
 
   // The skyline: no interiors, built straight up from well below the ground.

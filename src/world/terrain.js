@@ -131,7 +131,7 @@ export function createTerrain() {
   const group = new THREE.Group();
   group.name = 'terrain';
 
-  const near = new THREE.Mesh(buildGround(NEAR_SIZE, 380), mat);
+  const near = new THREE.Mesh(buildGround(NEAR_SIZE, NEAR_SIZE / 2), mat);
   near.receiveShadow = true;
   near.name = 'terrain-near';
   group.add(near);

@@ -16,6 +16,12 @@ import { SPAWN, CLUSTER, TURBINES } from './world/layout.js';
 import { CollisionWorld } from './game/collision.js';
 import { PlayerController } from './game/controls.js';
 import { createHud } from './game/hud.js';
+import { DuelGame } from './game/duel.js';
+import { startMenu, terminalPrompt, duelMenu, flash, roomBadge, toast, waitingPanel } from './game/menus.js';
+import { menuFlight } from './game/flight.js';
+import { connect, cleanRoomId, sanitizeName } from './net/net.js';
+import { RemotePlayers } from './net/remote.js';
+import { audio } from './audio/engine.js';
 import { SHOTS } from './shots.js';
 
 const params = new URLSearchParams(location.search);
@@ -68,8 +74,8 @@ sc.far = 900;
 scene.add(sun, sun.target);
 scene.add(new THREE.HemisphereLight(0xc8ecff, 0x6fe04a, 1.0));
 
-function focusShadows(x, z) {
-  sun.target.position.set(x, 0, z);
+function focusShadows(x, z, y = 0) {
+  sun.target.position.set(x, y, z);
   sun.position.copy(sun.target.position).addScaledVector(SUN_DIRECTION, 450);
 }
 
@@ -171,6 +177,10 @@ composer.addPass(new OutputPass());
 
 let controls = null;
 let player = character;
+// menu → play ⇄ duelMenu → duel → play
+let mode = 'play';
+let tick = () => {};
+let netTick = () => {};
 const shot = shotName && SHOTS[shotName] ? SHOTS[shotName](character) : null;
 if (shot) {
   camera.position.copy(shot.position);
@@ -184,19 +194,245 @@ if (shot) {
   world.add(city.userData.colliders);
   world.add({ circles: TURBINES.map(([x, z]) => ({ x, z, r: 1.0, y0: heightAt(x, z) - 1, y1: heightAt(x, z) + 40 })) });
   controls = new PlayerController({ player: character, camera, dom: renderer.domElement, world });
-  const hud = createHud({
-    color: playerColor,
-    onColor: (key) => {
-      const next = createBuddy({ color: key });
-      scene.remove(player);
-      controls.setPlayer(next);
-      player = next;
-      scene.add(next);
-    },
-  });
+  let color = playerColor;
+  let net = null;
+  const setColor = (key) => {
+    color = key;
+    net?.setHello({ color: key });
+    const next = createBuddy({ color: key });
+    next.visible = player.visible;
+    scene.remove(player);
+    controls.setPlayer(next);
+    player = next;
+    scene.add(next);
+  };
+  const hud = createHud({ color, onColor: setColor });
   controls.bindTouch(hud);
+
+  // The duel tower: terminal prompt in the lobby, menu, and the rooftop duel.
+  const arena = city.userData.arena;
+  const duel = new DuelGame({ scene, camera, dom: renderer.domElement, arena, input: controls });
+  const prompt = terminalPrompt(() => openDuelMenu());
+  async function openDuelMenu() {
+    if (mode !== 'play') return;
+    mode = 'duelMenu';
+    prompt.visible = false;
+    controls.keys.clear();
+    const choice = await duelMenu({
+      room: net?.roomId ?? null,
+      friends: () => [...(net?.peers ?? new Map())].map(([id, p]) => ({ id, name: p.name })),
+    });
+    if (choice?.level) startDuel(choice.level);
+    else if (choice?.friend && net?.peers.has(choice.friend)) challenge(choice.friend);
+    else mode = 'play';
+  }
+  async function startDuel(level, online = null) {
+    await flash();
+    mode = 'duel';
+    hud.visible = false;
+    player.visible = false;
+    duel.start({
+      difficulty: level,
+      color,
+      online,
+      onExit: async () => {
+        await flash();
+        // Back in the lobby, standing in front of the terminal.
+        player.position.copy(arena.terminal).addScaledVector(arena.terminalFacing, 2.2).setY(arena.lobbyFloorY);
+        player.rotation.y = Math.atan2(-arena.terminalFacing.x, -arena.terminalFacing.z);
+        controls.yaw = player.rotation.y + Math.PI;
+        controls.velocity.set(0, 0, 0);
+        controls.jumpQueued = false;
+        controls.firstUpdate = true;
+        player.visible = true;
+        hud.visible = true;
+        mode = 'play';
+        audio.play('lobby');
+      },
+    });
+  }
+
+  // ---------- Playing together ----------
+  // Challenges: the challenger hosts the duel, the one who accepts joins as guest.
+  let pending = null; // our open challenge: { peer, panel, timer }
+  const invites = new Map(); // challenges we received: peer -> toast
+  const onlineDuel = (role, peer) => {
+    const p = net.peers.get(peer);
+    return { role, net, peer, foeName: p?.name ?? 'Freund', foeColor: p?.color ?? 'blau' };
+  };
+  function challenge(peer) {
+    const name = net.peers.get(peer)?.name ?? 'Freund';
+    mode = 'duelMenu';
+    net.send('duel', { t: 'invite' }, peer);
+    const finish = () => {
+      clearTimeout(pending?.timer);
+      pending?.panel.close();
+      pending = null;
+    };
+    pending = {
+      peer,
+      finish,
+      panel: waitingPanel(name, () => {
+        net.send('duel', { t: 'cancel' }, peer);
+        finish();
+        mode = 'play';
+      }),
+      timer: setTimeout(() => {
+        net.send('duel', { t: 'cancel' }, peer);
+        finish();
+        mode = 'play';
+        toast(`${name} hat nicht geantwortet.`);
+      }, 30_000),
+    };
+  }
+  function onDuelMessage(m, from) {
+    const name = net.peers.get(from)?.name ?? 'Freund';
+    if (m.t === 'invite') {
+      if (mode !== 'play' || invites.has(from)) {
+        net.send('duel', { t: 'busy' }, from);
+        return;
+      }
+      audio.select();
+      const t = toast(`${name} fordert dich zum Aero-Duell heraus!`, {
+        seconds: 30,
+        actions: [
+          {
+            label: 'Annehmen',
+            kind: 'green',
+            onClick: () => {
+              invites.delete(from);
+              if (mode !== 'play' || !net.peers.has(from)) {
+                net.send('duel', { t: 'decline' }, from);
+                return;
+              }
+              net.send('duel', { t: 'accept' }, from);
+              startDuel('normal', onlineDuel('guest', from));
+            },
+          },
+          {
+            label: 'Ablehnen',
+            onClick: () => {
+              invites.delete(from);
+              net.send('duel', { t: 'decline' }, from);
+            },
+          },
+        ],
+      });
+      invites.set(from, t);
+      setTimeout(() => invites.get(from) === t && invites.delete(from), 30_000);
+    } else if (m.t === 'cancel') {
+      invites.get(from)?.close();
+      invites.delete(from);
+    } else if (pending?.peer === from) {
+      pending.finish();
+      if (m.t === 'accept') startDuel('normal', onlineDuel('host', from));
+      else {
+        mode = 'play';
+        toast(m.t === 'busy' ? `${name} ist gerade beschäftigt.` : `${name} hat abgelehnt.`);
+      }
+    } else if (m.t === 'accept') {
+      // Too late: we already gave up waiting. Tell them so their duel ends right away.
+      net.send('duel', { t: 'leave' }, from);
+    }
+  }
+
+  const remotes = new RemotePlayers(scene);
+  let badge = null;
+  async function joinRoom(roomId, name) {
+    try {
+      net = await connect(roomId, { local: params.get('netz') === 'lokal', hello: { name, color } });
+    } catch (e) {
+      console.error(e);
+      toast('Verbindung zum Raum fehlgeschlagen – du spielst allein.', { seconds: 6 });
+      return;
+    }
+    const url = new URL(location.href);
+    url.searchParams.set('raum', roomId);
+    history.replaceState(null, '', url);
+    badge = roomBadge(roomId);
+    const recount = () => (badge.count = net.peers.size + 1);
+    net.on('join', (id) => {
+      remotes.upsert(id, net.peers.get(id));
+      recount();
+      toast(`${net.peers.get(id).name} ist da! 👋`);
+      audio.click();
+    });
+    net.on('hello', (id) => remotes.upsert(id, net.peers.get(id)));
+    net.on('leave', (id) => {
+      const p = remotes.players.get(id);
+      remotes.remove(id);
+      recount();
+      invites.get(id)?.close();
+      invites.delete(id);
+      if (pending?.peer === id) {
+        pending.finish();
+        mode = 'play';
+      }
+      if (p) toast(`${p.name} ist gegangen.`);
+    });
+    net.on('pos', (s, id) => remotes.receive(id, s, performance.now() / 1000));
+    net.on('duel', (m, id) => m && typeof m.t === 'string' && onDuelMessage(m, id));
+    window.__game.net = net;
+  }
+  let sendTimer = 0;
+  function sendPresence(dt) {
+    sendTimer -= dt;
+    if (!net || sendTimer > 0 || !net.peers.size) return;
+    sendTimer = 0.1;
+    const r = (v) => Math.round(v * 100) / 100;
+    net.send('pos', {
+      x: r(player.position.x),
+      y: r(player.position.y),
+      z: r(player.position.z),
+      r: r(player.rotation.y),
+      a: player.userData.state,
+      m: mode === 'duel' ? 'duel' : 'play',
+    });
+  }
+  netTick = (dt) => {
+    sendPresence(dt);
+    remotes.update(dt, performance.now() / 1000);
+    if (badge) badge.visible = mode !== 'duel' && mode !== 'menu';
+  };
+
+  // Each frame in play mode: terminal prompt and the music zone (lobby inside the duel tower).
+  tick = () => {
+    const nearTerminal = player.position.distanceTo(arena.terminal) < 2.8;
+    prompt.visible = mode === 'play' && nearTerminal;
+    const inDuelTower =
+      Math.hypot(player.position.x - arena.tower.x, player.position.z - arena.tower.z) < 11.5 && player.position.y < arena.lobbyFloorY + 9;
+    audio.play(inDuelTower ? 'lobby' : 'wiese');
+  };
+
   // Handle for automated tests (and the browser console).
-  window.__game = { controls, world, get player() { return player; } };
+  window.__game = { camera, debug: { menuFlight, heightAt, camera }, controls, world, duel, remotes, openDuelMenu, startDuel, joinRoom, netTick: (dt) => netTick(dt), get mode() { return mode; }, get player() { return player; } };
+
+  // Start screen over a camera flight across the meadow (skipped with ?pause for tests).
+  const room = cleanRoomId(params.get('raum')) || null;
+  const storedName = () => {
+    try {
+      return sanitizeName(localStorage.getItem('aero-name'));
+    } catch {
+      return '';
+    }
+  };
+  const name = storedName() || `Buddy ${Math.floor(100 + Math.random() * 900)}`;
+  if (!params.has('pause')) {
+    mode = 'menu';
+    hud.visible = false;
+    startMenu({ color, onColor: setColor, name, room }).then((choice) => {
+      try {
+        localStorage.setItem('aero-name', choice.name);
+      } catch {}
+      mode = 'play';
+      hud.visible = true;
+      controls.firstUpdate = true;
+      audio.play('wiese');
+      if (choice.room) joinRoom(choice.room, choice.name);
+    });
+  } else if (room) {
+    joinRoom(room, params.get('name') ? sanitizeName(params.get('name')) : name);
+  }
 }
 
 addEventListener('resize', () => {
@@ -222,10 +458,20 @@ function frame() {
   for (const u of updatables) u.userData.update(t, camera);
   if (shot) {
     character.userData.pose(shotName === 'spielansicht' ? 'walk' : 'idle', 0.4);
-  } else {
+  } else if (mode === 'menu') {
+    // Calm flight over the meadow, showing the towers and the far skyline.
+    const focus = menuFlight(camera, t + 18);
+    focusShadows(focus.x, focus.z, heightAt(focus.x, focus.z));
+  } else if (mode === 'duel') {
+    window.__game.duel.update(dt);
+    const c = city.userData.arena.center;
+    focusShadows(c.x, c.z, c.y);
+  } else if (mode === 'play') {
     controls.update(dt);
-    focusShadows(player.position.x, player.position.z);
+    focusShadows(player.position.x, player.position.z, player.position.y);
+    tick();
   }
+  netTick(dt);
   sky.position.copy(camera.position);
   sky.userData.update(t);
   composer.render();

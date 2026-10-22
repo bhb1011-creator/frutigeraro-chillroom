@@ -315,6 +315,19 @@ function buildPodium({ group, outline, plant, rng, spec }) {
   }
   group.add(canopy);
 
+  // True when a spot is too close to the staircase (and the void above it on the first floor).
+  const nearStairs = (pt, margin) => hasStairs && distToSegment(pt, stairStart, stairDir, stairRun) < stairW / 2 + margin;
+
+  // Furniture footprints for the player physics: { x, z, r, level } with level 'ground' or 'first'.
+  const obstacles = [];
+  const block = (obj, level, points, r) => {
+    obj.updateMatrix();
+    for (const [x, z] of points) {
+      const v = new THREE.Vector3(x, 0, z).applyMatrix4(obj.matrix);
+      obstacles.push({ x: v.x, z: v.z, r, level });
+    }
+  };
+
   // ---------- Ground floor interior ----------
   const coreOutline = scaleOutline(outline, spec.coreScale ?? 0.3);
   group.add(mesh(prismWall(coreOutline, 0.15, PODIUM_H, {}), CM.offWhite));
@@ -335,6 +348,7 @@ function buildPodium({ group, outline, plant, rng, spec }) {
   lookAtXZ(rd, polar(entrance, R));
   rd.rotation.y += Math.PI;
   group.add(rd);
+  block(rd, 'ground', [-0.85, -0.45, 0, 0.45, 0.85].map((a) => [Math.sin(a) * 1.85, -Math.cos(a) * 1.85]), 0.45);
   // Wall screen next to the elevators.
   const scr = mesh(new THREE.PlaneGeometry(1.4, 2.1), screenMaterial(spec.name ?? 'Aero', spec.facade?.seed ?? 1), { cast: false });
   scr.position.copy(polar(entrance + 0.55, radiusAt(coreOutline, entrance + 0.55) + 0.03, 1.9));
@@ -347,13 +361,16 @@ function buildPodium({ group, outline, plant, rng, spec }) {
   const table = coffeeTable(0.65);
   table.position.copy(loungeP);
   group.add(table);
+  block(table, 'ground', [[0, 0]], 0.7);
   for (const off of [-1.4, 1.4]) {
     const s = sofa(2.3, off < 0 ? CM.cushion : CM.cushionGreen);
     const dir = new THREE.Vector3(Math.cos(loungeA + Math.PI / 2), 0, Math.sin(loungeA + Math.PI / 2));
     s.position.copy(loungeP).addScaledVector(dir, off);
     s.position.y = 0.15;
     lookAtXZ(s, loungeP);
+    if (nearStairs(s.position, 1.2)) continue;
     group.add(s);
+    block(s, 'ground', [[-0.7, 0], [0.7, 0]], 0.55);
   }
 
   // Columns and indoor plants.
@@ -407,16 +424,20 @@ function buildPodium({ group, outline, plant, rng, spec }) {
     for (let k = -1; k <= 1; k++) {
       const a = officeA + k * (3.0 / ((coreR + R) * 0.5));
       const rr = (coreR + R) * 0.5 + (row - 0.5) * 2.4;
-      if (rr > radiusAt(outline, a) - 1.2) continue;
+      // The core is not round in every tower: measure it in this direction.
+      if (rr > radiusAt(outline, a) - 1.2 || rr - 0.75 < radiusAt(coreOutline, a) + 0.6) continue;
+      if (nearStairs(polar(a, rr), 1.4) || nearStairs(polar(a, rr - 0.75), 1.0)) continue;
       const d = desk(1.6, row ? CM.aquaGlow : CM.greenGlow);
       d.position.copy(polar(a, rr, ff));
       lookAtXZ(d, new THREE.Vector3(0, ff, 0));
       group.add(d);
+      block(d, 'first', [[-0.45, 0], [0.45, 0]], 0.45);
       const c = chair(k % 2 ? CM.white : CM.aqua);
       c.position.copy(polar(a, rr - 0.75, ff));
       lookAtXZ(c, new THREE.Vector3(0, ff, 0));
       c.rotation.y += Math.PI;
       group.add(c);
+      block(c, 'first', [[0, 0]], 0.3);
     }
   }
   // Café corner near the facade.
@@ -425,46 +446,87 @@ function buildPodium({ group, outline, plant, rng, spec }) {
   for (let k = 0; k < 3; k++) {
     const a = cafeA + (k - 1) * (2.6 / cafeR);
     const p = polar(a, cafeR, ff);
+    if (nearStairs(p, 1.8) || cafeR + 1.1 > radiusAt(outline, a) || cafeR - 1.1 < radiusAt(coreOutline, a) + 0.3) continue;
     const t = coffeeTable(0.45);
     t.scale.set(1, 1.6, 1);
     t.position.copy(p);
     group.add(t);
+    block(t, 'first', [[0, 0]], 0.55);
     for (const s of [0, Math.PI]) {
       const c = chair(k % 2 ? CM.lime : CM.white);
       c.position.copy(p).add(new THREE.Vector3(Math.cos(a + s) * 0.75, 0, Math.sin(a + s) * 0.75));
       lookAtXZ(c, p);
       group.add(c);
+      block(c, 'first', [[0, 0]], 0.3);
     }
   }
-  // Glass meeting room.
-  const meetA = entrance + Math.PI * 1.05;
-  const mp = polar(meetA, (coreR + R) * 0.55, ff);
-  const room = new THREE.Group();
-  room.position.copy(mp);
-  lookAtXZ(room, new THREE.Vector3(0, ff, 0));
-  const glassBox = mesh(new THREE.BoxGeometry(3.6, 2.9, 2.8), CM.railGlass, { cast: false });
-  glassBox.position.y = 1.45;
-  const frame = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(3.6, 2.9, 2.8)), new THREE.LineBasicMaterial({ color: 0xffffff }));
-  frame.position.y = 1.45;
-  const mt = box(2.2, 0.06, 1.0, CM.white, 0.02);
-  mt.position.y = 0.74;
-  const mleg = mesh(new THREE.CylinderGeometry(0.08, 0.15, 0.72, 12), CM.silver);
-  mleg.position.y = 0.36;
-  room.add(glassBox, frame, mt, mleg);
-  for (const [x, z, r] of [[-0.6, 0.85, Math.PI], [0.6, 0.85, Math.PI], [-0.6, -0.85, 0], [0.6, -0.85, 0]]) {
-    const c = chair(CM.aqua);
-    c.position.set(x, 0, z);
-    c.rotation.y = r;
-    room.add(c);
+  // Glass meeting room: the first direction (and distance) where the whole box sits between the
+  // core and the facade, away from the stairs.
+  const roomFits = (a, r) => {
+    const c = polar(a, r);
+    const yaw = Math.atan2(-c.x, -c.z);
+    return [[-1.8, -1.4], [1.8, -1.4], [1.8, 1.4], [-1.8, 1.4], [0, 1.4], [0, -1.4]].every(([x, z]) => {
+      const p = new THREE.Vector3(x, 0, z).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw).add(c);
+      const pa = Math.atan2(p.z, p.x);
+      const pr = Math.hypot(p.x, p.z);
+      return pr > radiusAt(coreOutline, pa) + 0.9 && pr < radiusAt(outline, pa) - 0.5 && !nearStairs(p, 1.2);
+    }) && obstacles.every((o) => {
+      // Desks and café tables upstairs stay outside the glass box (with room to walk past).
+      if (o.level !== 'first') return true;
+      const v = new THREE.Vector3(o.x, 0, o.z).sub(c).applyAxisAngle(new THREE.Vector3(0, 1, 0), -yaw);
+      return Math.abs(v.x) > 1.8 + o.r + 0.5 || Math.abs(v.z) > 1.4 + o.r + 0.5;
+    });
+  };
+  let meetA = null;
+  let meetR = 0;
+  search: for (const d of [0, 0.5, -0.5, 1, -1, 1.5, -1.5, 2, -2, 2.5, -2.5]) {
+    for (const k of [0.55, 0.5, 0.6, 0.45, 0.65]) {
+      const a = entrance + Math.PI * 1.05 + d;
+      const r = (radiusAt(coreOutline, a) + radiusAt(outline, a)) * k;
+      if (roomFits(a, r)) {
+        meetA = a;
+        meetR = r;
+        break search;
+      }
+    }
   }
-  group.add(room);
+  // Slim towers have no space for it; then there is simply no meeting room.
+  let room = null;
+  if (meetA !== null) {
+    const mp = polar(meetA, meetR, ff);
+    room = new THREE.Group();
+    room.position.copy(mp);
+    lookAtXZ(room, new THREE.Vector3(0, ff, 0));
+    const glassBox = mesh(new THREE.BoxGeometry(3.6, 2.9, 2.8), CM.railGlass, { cast: false });
+    glassBox.position.y = 1.45;
+    const frame = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(3.6, 2.9, 2.8)), new THREE.LineBasicMaterial({ color: 0xffffff }));
+    frame.position.y = 1.45;
+    const mt = box(2.2, 0.06, 1.0, CM.white, 0.02);
+    mt.position.y = 0.74;
+    const mleg = mesh(new THREE.CylinderGeometry(0.08, 0.15, 0.72, 12), CM.silver);
+    mleg.position.y = 0.36;
+    room.add(glassBox, frame, mt, mleg);
+    for (const [x, z, r] of [[-0.6, 0.85, Math.PI], [0.6, 0.85, Math.PI], [-0.6, -0.85, 0], [0.6, -0.85, 0]]) {
+      const c = chair(CM.aqua);
+      c.position.set(x, 0, z);
+      c.rotation.y = r;
+      room.add(c);
+    }
+    group.add(room);
+  }
   // A couple of plants upstairs.
   for (const a of plant ? [cafeA + 0.9, officeA + 1.2] : []) {
     const p = polar(a, radiusAt(outline, a) * 0.78, ff);
     if (hasStairs && distToSegment(p, stairStart, stairDir, stairRun) < stairW + 1) continue;
+    if (obstacles.some((o) => o.level === 'first' && Math.hypot(o.x - p.x, o.z - p.z) < o.r + 1.1)) continue;
+    if (room) {
+      const v = p.clone().sub(room.position).applyAxisAngle(new THREE.Vector3(0, 1, 0), -room.rotation.y);
+      if (Math.abs(v.x) < 2.6 && Math.abs(v.z) < 2.2) continue;
+    }
     const pl = planter(0.5, 0.7);
     pl.position.copy(p);
     group.add(pl);
+    block(pl, 'first', [[0, 0]], 0.55);
     plant('bush', p.clone().setY(ff + 0.72), 0.35);
   }
   const local = (obj, x, z) => {
@@ -477,9 +539,10 @@ function buildPodium({ group, outline, plant, rng, spec }) {
     core: coreOutline,
     columns: colMats.map((m) => [m.elements[12], m.elements[14]]),
     canopyColumns: [-1, 1].map((s) => local(canopy, s * 2.9, 3.25)),
-    room: [[-1.8, -1.4], [1.8, -1.4], [1.8, 1.4], [-1.8, 1.4]].map(([x, z]) => local(room, x, z)),
+    room: room ? [[-1.8, -1.4], [1.8, -1.4], [1.8, 1.4], [-1.8, 1.4]].map(([x, z]) => local(room, x, z)) : null,
     stairs: hasStairs ? { x: stairStart.x, z: stairStart.z, dx: stairDir.x, dz: stairDir.z, run: stairRun, width: stairW } : null,
     hole: hasStairs ? hole : null,
+    obstacles,
     ground: 0.15,
     first: GROUND_H + SLAB_T,
     ceiling: PODIUM_H,

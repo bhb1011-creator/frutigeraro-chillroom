@@ -20,6 +20,9 @@ export const TOWER_SITES = {
   arena: { x: 42, z: -54, r: 13 },
 };
 
+// The distant, unreachable skyline of giant towers (its feet hide behind the hills).
+export const SKYLINE_CENTER = { x: -380, z: -1500 };
+
 export const TURBINES = [
   [-130, -120],
   [-100, -150],
@@ -35,5 +38,8 @@ export const TURBINES = [
 ];
 
 // Near terrain is detailed; the far ring is coarse and only shows rolling hills to the horizon.
-export const NEAR_SIZE = 760;
+export const NEAR_SIZE = 1160;
+// The player can roam this far from the centre. The grass reaches ~145 m around the camera, so
+// WORLD_RADIUS + 145 stays inside NEAR_SIZE / 2 and the end of the grass is never in view.
+export const WORLD_RADIUS = 420;
 export const FAR_SIZE = 6000;

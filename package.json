@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "node scripts/test-controls.mjs",
+    "test": "node scripts/test-controls.mjs && node scripts/test-duel.mjs && node scripts/test-multiplayer.mjs && node scripts/test-menu.mjs",
     "dev": "vite",
     "build": "vite build",
     "screenshots": "node scripts/screenshots.mjs",
@@ -22,6 +22,7 @@
   },
   "homepage": "https://github.com/bhb1011-creator/frutigeraro-chillroom#readme",
   "dependencies": {
+    "@trystero-p2p/nostr": "^0.26.0",
     "three": "^0.170.0"
   },
   "devDependencies": {

@@ -27,7 +27,7 @@ function impulseResponse(ctx, seconds = 3.2, decay = 3.2, damp = 0.35) {
 /**
  * Master bus: channels → (dry, reverb send, delay send) → compressor → destination.
  */
-export function createMixer(ctx, { reverbSeconds = 3.2, delayTime = 0.36, delayFeedback = 0.32, master = 0.8 } = {}) {
+export function createMixer(ctx, { reverbSeconds = 3.2, delayTime = 0.36, delayFeedback = 0.32, master = 0.8, destination = ctx.destination } = {}) {
   const out = ctx.createGain();
   out.gain.value = master;
   const comp = ctx.createDynamicsCompressor();
@@ -39,7 +39,7 @@ export function createMixer(ctx, { reverbSeconds = 3.2, delayTime = 0.36, delayF
   const bus = ctx.createGain();
   bus.connect(comp);
   comp.connect(out);
-  out.connect(ctx.destination);
+  out.connect(destination);
 
   const reverb = ctx.createConvolver();
   reverb.buffer = impulseResponse(ctx, reverbSeconds);

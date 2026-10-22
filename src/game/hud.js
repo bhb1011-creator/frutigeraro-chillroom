@@ -9,9 +9,9 @@ const CSS = `
 .hud { position: fixed; inset: 0; pointer-events: none; font-family: 'Segoe UI', 'Frutiger', 'Helvetica Neue', Arial, sans-serif; color: #0b3f66; }
 .hud .glass {
   pointer-events: auto;
-  background: linear-gradient(180deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.18) 48%, rgba(120,210,255,0.22) 52%, rgba(160,235,255,0.35) 100%);
-  border: 1px solid rgba(255,255,255,0.8);
-  box-shadow: 0 6px 24px rgba(0,80,140,0.25), inset 0 1px 0 rgba(255,255,255,0.9);
+  background: linear-gradient(180deg, rgba(255,255,255,0.36) 0%, rgba(255,255,255,0.1) 48%, rgba(120,210,255,0.1) 52%, rgba(160,235,255,0.2) 100%);
+  border: 1px solid rgba(255,255,255,0.7);
+  box-shadow: 0 6px 20px rgba(0,80,140,0.18), inset 0 1px 0 rgba(255,255,255,0.8);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   border-radius: 14px;
@@ -20,7 +20,8 @@ const CSS = `
 .hud .panel { position: absolute; top: 16px; left: 16px; padding: 10px 16px 12px; max-width: calc(100vw - 64px); transition: opacity 0.6s; }
 .hud .panel h1 { margin: 0 0 4px; font-size: 18px; font-weight: 600; letter-spacing: 0.3px; }
 .hud .panel p { margin: 2px 0; font-size: 13px; opacity: 0.95; }
-.hud .panel.faded { opacity: 0.35; }
+.hud .panel.faded { opacity: 0.3; }
+.hud.hidden { display: none; }
 .hud .colors { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; padding: 8px 12px; }
 .hud .colors button {
   width: 30px; height: 30px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.85); cursor: pointer; padding: 0;
@@ -77,5 +78,11 @@ export function createHud({ color, onColor }) {
   const panel = root.querySelector('.panel');
   setTimeout(() => panel.classList.add('faded'), 9000);
 
-  return { joystick: root.querySelector('.joystick'), jump: root.querySelector('.jump') };
+  return {
+    joystick: root.querySelector('.joystick'),
+    jump: root.querySelector('.jump'),
+    set visible(v) {
+      root.classList.toggle('hidden', !v);
+    },
+  };
 }

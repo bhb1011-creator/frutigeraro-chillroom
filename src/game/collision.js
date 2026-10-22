@@ -1,3 +1,4 @@
+import { WORLD_RADIUS } from '../world/layout.js';
 import { heightAt } from '../world/terrain.js';
 
 // Simple world physics for the player: floors (terrain, building floors, stair ramps),
@@ -21,7 +22,7 @@ function insidePolygon(points, x, z) {
 }
 
 export class CollisionWorld {
-  constructor({ floors = [], ramps = [], walls = [], circles = [], bounds = 520 } = {}) {
+  constructor({ floors = [], ramps = [], walls = [], circles = [], bounds = WORLD_RADIUS } = {}) {
     this.floors = floors;
     this.ramps = ramps;
     this.walls = walls;
