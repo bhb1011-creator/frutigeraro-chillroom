@@ -7,7 +7,8 @@
     "test": "node scripts/test-controls.mjs",
     "dev": "vite",
     "build": "vite build",
-    "screenshots": "node scripts/screenshots.mjs"
+    "screenshots": "node scripts/screenshots.mjs",
+    "music": "node scripts/render-music.mjs"
   },
   "repository": {
     "type": "git",
