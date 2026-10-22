@@ -2,7 +2,7 @@
 <html lang="de">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>Frutiger Aero Chillroom</title>
     <style>
       html,
@@ -11,13 +11,85 @@
         height: 100%;
         overflow: hidden;
         background: #bfe9ff;
+        touch-action: none;
       }
       canvas {
         display: block;
       }
+      #loading {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+        background: linear-gradient(180deg, #2a9ff0 0%, #8fdcff 55%, #b8f58a 56%, #5fd83a 100%);
+        font-family: 'Segoe UI', 'Frutiger', 'Helvetica Neue', Arial, sans-serif;
+        color: #0b3f66;
+        z-index: 10;
+        transition: opacity 0.6s;
+      }
+      #loading .card {
+        padding: 22px 30px;
+        border-radius: 18px;
+        text-align: center;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.75) 0%, rgba(255, 255, 255, 0.35) 50%, rgba(160, 235, 255, 0.45) 100%);
+        border: 1px solid rgba(255, 255, 255, 0.9);
+        box-shadow: 0 8px 30px rgba(0, 70, 130, 0.3), inset 0 1px 0 #fff;
+        max-width: calc(100vw - 80px);
+      }
+      #loading h1 {
+        margin: 0 0 8px;
+        font-size: 22px;
+        font-weight: 600;
+      }
+      #loading p {
+        margin: 0;
+        font-size: 14px;
+      }
+      #loading .orb {
+        width: 54px;
+        height: 54px;
+        margin: 0 auto 14px;
+        border-radius: 50%;
+        background: radial-gradient(circle at 35% 30%, #fff, #8fe3ff 40%, #1a9fe0 75%, #0a6fb8);
+        box-shadow: 0 4px 14px rgba(0, 80, 150, 0.4);
+        animation: bob 1.4s ease-in-out infinite;
+      }
+      @keyframes bob {
+        50% {
+          transform: translateY(-10px) scale(1.05);
+        }
+      }
+      #loading.error .orb {
+        animation: none;
+        background: radial-gradient(circle at 35% 30%, #fff, #ffb3b3 40%, #e04040 75%);
+      }
     </style>
   </head>
   <body>
+    <div id="loading">
+      <div class="card">
+        <div class="orb"></div>
+        <h1>Frutiger Aero Chillroom</h1>
+        <p id="loading-status">Welt wird geladen …</p>
+      </div>
+    </div>
+    <script>
+      // Loading screen: main.js reports progress; any error is shown instead of a blank page.
+      window.__setLoading = (text) => {
+        document.getElementById('loading-status').textContent = text;
+      };
+      const showError = (message) => {
+        const el = document.getElementById('loading');
+        if (!el) return;
+        el.classList.add('error');
+        window.__setLoading('Fehler beim Laden: ' + message + ' — dein Browser braucht WebGL 2 (aktueller Chrome, Edge, Firefox oder Safari).');
+      };
+      addEventListener('error', (e) => showError(e.message || 'unbekannt'));
+      addEventListener('unhandledrejection', (e) => showError(e.reason?.message || String(e.reason)));
+    </script>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

@@ -21,6 +21,12 @@ import { SHOTS } from './shots.js';
 const params = new URLSearchParams(location.search);
 const shotName = params.get('shot');
 
+// Progress on the loading screen (index.html); yields so the text gets painted.
+async function step(text) {
+  window.__setLoading?.(text);
+  await new Promise((r) => setTimeout(r, 0));
+}
+
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance', preserveDrawingBuffer: !!shotName });
 renderer.setPixelRatio(shotName ? 1 : Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
@@ -37,6 +43,7 @@ scene.fog = new THREE.Fog(0xd4f3ff, 420, 4200);
 const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 7000);
 
 // Sky + environment reflections (this is what makes glass and water shine).
+await step('Himmel und Wolken entstehen …');
 const sky = createSky();
 scene.add(sky);
 sky.userData.update(14);
@@ -109,11 +116,14 @@ const add = (obj) => {
   if (obj.userData.update) updatables.push(obj);
   return obj;
 };
+await step('Hügel und Wiesen werden geformt …');
 add(createTerrain());
 add(createBuildings());
+await step('Hochhäuser werden gebaut …');
 const city = add(createCity());
 
 // Just meadow: dense grass that travels with the camera, everywhere you go.
+await step('Gras wächst …');
 const grassPromise = createGrass();
 
 // The player: a buddy figure on the meadow, looking towards the towers (?figur=rot|blau|gold|tuerkis|gruen|pink|glas).
@@ -129,9 +139,11 @@ camera.layers.enable(1);
 const grass = await grassPromise;
 grass.traverse((o) => o.layers.set(1));
 add(grass);
+await step('Texturen werden geladen …');
 await allLoaded();
 await texturesReady(scene);
 
+await step('Spiegelungen werden berechnet …');
 // Glass towers reflect the actual meadow and their neighbours, captured once from inside the cluster.
 {
   // 8-bit target: a half-float capture can carry NaNs that the bloom pass would smear over the whole frame.
@@ -217,7 +229,10 @@ function frame() {
   sky.position.copy(camera.position);
   sky.userData.update(t);
   composer.render();
-  if (++frames === 1) window.__ready = true;
+  if (++frames === 1) {
+    window.__ready = true;
+    document.getElementById('loading')?.remove();
+  }
   // ?pause stops after the first frame (used by the physics test).
   if ((!shot && !params.has('pause')) || !window.__ready) requestAnimationFrame(frame);
 }
