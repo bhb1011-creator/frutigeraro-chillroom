@@ -5,6 +5,9 @@ import { createMixer, bell, marimba, pluck, kick, hat, droplet, noise, osc, env,
 
 const BASE = `${import.meta.env.BASE_URL}assets/music/`;
 
+// Songs that take turns while you are out in the world (and on the start screen).
+export const PLAYLISTS = { welt: ['wiese', 'brise', 'himmel'] };
+
 class AudioEngine {
   constructor() {
     this.ctx = null;
@@ -14,9 +17,11 @@ class AudioEngine {
     this.musicVolume = 0.55;
     this.sfxVolume = 0.8;
     this.muted = false;
+    this.listIndex = {};
+    this.nextTimer = null;
   }
 
-  /** Must run inside a user gesture (click / key / touch). */
+  /** Sound only starts once this ran inside a user gesture (click / key / touch); before that it waits. */
   unlock() {
     if (!this.ctx) {
       this.ctx = new AudioContext();
@@ -36,7 +41,7 @@ class AudioEngine {
         fx: this.mix.channel({ gain: 0.9, reverb: 0.2 }),
       };
     }
-    if (this.ctx.state === 'suspended') this.ctx.resume();
+    if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => {});
     this.setMuted(this.muted);
   }
 
@@ -57,30 +62,21 @@ class AudioEngine {
     return this.buffers.get(name);
   }
 
-  /** Cross-fades to a looping track (or plays a one-shot jingle with loop: false). */
+  /**
+   * Cross-fades to a looping track (or plays a one-shot jingle with loop: false). A playlist name
+   * (see PLAYLISTS) plays its songs one after another, each fading into the next.
+   */
   async play(name, { loop = true, fade = 1.2, then = null } = {}) {
     if (!this.ctx || this.currentName === name) return;
     this.currentName = name;
+    clearTimeout(this.nextTimer);
+    if (PLAYLISTS[name]) {
+      this.playNext(name);
+      return;
+    }
     const buffer = await this.load(name);
     if (this.currentName !== name) return;
-    const t = this.ctx.currentTime;
-    if (this.current) {
-      const old = this.current;
-      old.gain.gain.cancelScheduledValues(t);
-      old.gain.gain.setValueAtTime(old.gain.gain.value, t);
-      old.gain.gain.linearRampToValueAtTime(0, t + fade);
-      old.source.stop(t + fade + 0.1);
-    }
-    const source = this.ctx.createBufferSource();
-    source.buffer = buffer;
-    source.loop = loop;
-    const gain = this.ctx.createGain();
-    gain.gain.setValueAtTime(0, t);
-    gain.gain.linearRampToValueAtTime(1, t + (loop ? fade : 0.05));
-    source.connect(gain);
-    gain.connect(this.musicBus);
-    source.start(t);
-    this.current = { source, gain };
+    const source = this.crossTo(buffer, { loop, fade });
     if (!loop && then) {
       source.onended = () => {
         if (this.current?.source === source) {
@@ -90,6 +86,53 @@ class AudioEngine {
         }
       };
     }
+  }
+
+  /** Next song of a playlist; the one after it is loaded early so the change is seamless. */
+  async playNext(list) {
+    const songs = PLAYLISTS[list];
+    const index = (this.listIndex[list] ?? -1) + 1;
+    this.listIndex[list] = index;
+    const song = songs[index % songs.length];
+    const buffer = await this.load(song);
+    if (this.currentName !== list) return;
+    this.currentSong = song;
+    const fade = 3;
+    this.crossTo(buffer, { loop: false, fade: index === 0 ? 1.2 : fade, fadeIn: 1.5 });
+    this.load(songs[(index + 1) % songs.length]);
+    // Timed on the audio clock: it stands still while the browser keeps audio paused.
+    const endAt = this.ctx.currentTime + buffer.duration;
+    const check = () => {
+      if (this.currentName !== list || this.currentSong !== song) return;
+      const left = endAt - fade - this.ctx.currentTime;
+      if (left > 0.05) this.nextTimer = setTimeout(check, left * 1000);
+      else this.playNext(list);
+    };
+    clearTimeout(this.nextTimer);
+    check();
+  }
+
+  crossTo(buffer, { loop, fade, fadeIn = loop ? fade : 0.05 }) {
+    const t = this.ctx.currentTime;
+    if (this.current) {
+      const old = this.current;
+      old.gain.gain.cancelScheduledValues(t);
+      old.gain.gain.setValueAtTime(old.gain.gain.value, t);
+      old.gain.gain.linearRampToValueAtTime(0, t + fade);
+      old.source.onended = null;
+      old.source.stop(t + fade + 0.1);
+    }
+    const source = this.ctx.createBufferSource();
+    source.buffer = buffer;
+    source.loop = loop;
+    const gain = this.ctx.createGain();
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(1, t + fadeIn);
+    source.connect(gain);
+    gain.connect(this.musicBus);
+    source.start(t);
+    this.current = { source, gain };
+    return source;
   }
 
   // ---------- Sound effects ----------

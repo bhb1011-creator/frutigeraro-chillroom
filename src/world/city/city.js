@@ -126,7 +126,7 @@ const CLUSTER_TOWERS = {
   twinA: { name: 'Twin Aero', outline: circle(6.2, 48), floors: 16, facade: { hue: 200, seed: 57, lit: 0.03 }, fins: 1.3, coreScale: 0.36, crown: orbCrown },
   twinB: { name: 'Twin Aero', outline: circle(6.2, 48), floors: 16, facade: { hue: 200, seed: 71, lit: 0.03 }, fins: 1.3, coreScale: 0.36, crown: orbCrown },
   // The duel tower: only the podium comes from the generator; arenaCrown builds the sculpted shaft on top.
-  arena: { name: 'Aero-Duell', outline: circle(11, 80), floors: 0, facade: { hue: 178, seed: 41, lit: 0.03 }, openRoof: true, crown: arenaCrown },
+  arena: { name: 'Aero-Duell', outline: circle(11, 80), reserve: [[-1.6, 7.6, 1.4]], floors: 0, facade: { hue: 178, seed: 41, lit: 0.03 }, openRoof: true, crown: arenaCrown },
 };
 
 // ---------- Skyline on the horizon ----------
@@ -182,6 +182,7 @@ function clusterColliders(cluster) {
     loop(c.outline, base - 1, base + c.topY, (i) => p.door[i]);
     loop(c.outline, base + 3.4, base + c.topY, (i) => !p.door[i]);
     loop(p.core, base, base + p.ceiling);
+    loop(p.portal, base, base + p.ceiling);
     if (p.room) loop(p.room, base + p.first, base + p.first + 2.9);
     for (const col of p.columns) out.circles.push({ x: w(col)[0], z: w(col)[1], r: 0.32, y0: base, y1: base + p.ceiling });
     for (const col of p.canopyColumns) out.circles.push({ x: w(col)[0], z: w(col)[1], r: 0.15, y0: base, y1: base + 4 });

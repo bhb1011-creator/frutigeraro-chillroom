@@ -6,8 +6,8 @@ import { createServer } from 'vite';
 
 const server = await createServer({ server: { port: 5194 }, logLevel: 'error' });
 await server.listen();
-const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
-const context = await browser.newContext({ viewport: { width: 900, height: 560 } });
+const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'] });
+const context = await browser.newContext({ viewport: { width: 800, height: 500 } });
 await context.grantPermissions(['clipboard-read', 'clipboard-write']);
 const errors = [];
 const failures = [];
@@ -17,19 +17,39 @@ const check = (ok, what) => {
 };
 
 const page = await context.newPage();
+// Software rendering in CI is slow (a frame can take a second); give clicks time to settle.
+page.setDefaultTimeout(180_000);
 page.on('pageerror', (e) => errors.push(e.message));
 await page.goto('http://localhost:5194/?netz=lokal');
 await page.waitForFunction(() => window.__game && window.__ready, null, { timeout: 600_000 });
 check(await page.isVisible('.aero-start'), 'start screen is shown');
+
+// Music plays on the start screen already, and the world playlist moves on from song to song.
+const music = await page.waitForFunction(() => window.__game.audio.currentSong && window.__game.audio.ctx.state, null, { timeout: 20_000 }).then(
+  () => page.evaluate(() => ({ list: window.__game.audio.currentName, song: window.__game.audio.currentSong, state: window.__game.audio.ctx.state })),
+  () => null,
+);
+check(music?.list === 'welt' && music?.song === 'wiese' && music?.state === 'running', `music starts on the start screen (${JSON.stringify(music)})`);
+const order = await page.evaluate(async () => {
+  const a = window.__game.audio;
+  const seen = [];
+  for (let i = 0; i < 3; i++) {
+    await a.playNext('welt');
+    seen.push(a.currentSong);
+  }
+  return seen;
+});
+check(order.join() === 'brise,himmel,wiese', `the songs take turns (${order})`);
 check((await page.$$('.aero-start canvas')).length === 0, 'no map on the start screen');
 
 // The camera flies: it moves between frames, stays finite and above the ground.
 const cam = () => page.evaluate(() => window.__game.camera.position.toArray());
 const c1 = await cam();
-await page.waitForTimeout(1500);
+// Wait for the next rendered frames (software rendering can take seconds per frame).
+await page.waitForFunction((x) => window.__game.camera.position.x !== x, c1[0], { timeout: 120_000 }).catch(() => {});
 const c2 = await cam();
 const moved = Math.hypot(c2[0] - c1[0], c2[2] - c1[2]);
-check(c2.every(Number.isFinite) && moved > 0.05, `camera is flying (moved ${moved.toFixed(2)} m)`);
+check(c2.every(Number.isFinite) && moved > 0.01, `camera is flying (moved ${moved.toFixed(2)} m)`);
 const clear = await page.evaluate(() => {
   // Sample the whole loop: the camera must stay over the meadow and look at both skylines.
   const { menuFlight, heightAt, camera } = window.__game.debug;

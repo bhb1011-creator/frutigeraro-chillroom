@@ -401,11 +401,11 @@ if (shot) {
     prompt.visible = mode === 'play' && nearTerminal;
     const inDuelTower =
       Math.hypot(player.position.x - arena.tower.x, player.position.z - arena.tower.z) < 11.5 && player.position.y < arena.lobbyFloorY + 9;
-    audio.play(inDuelTower ? 'lobby' : 'wiese');
+    audio.play(inDuelTower ? 'lobby' : 'welt');
   };
 
   // Handle for automated tests (and the browser console).
-  window.__game = { camera, debug: { menuFlight, heightAt, camera }, controls, world, duel, remotes, openDuelMenu, startDuel, joinRoom, netTick: (dt) => netTick(dt), get mode() { return mode; }, get player() { return player; } };
+  window.__game = { audio, camera, debug: { menuFlight, heightAt, camera }, controls, world, duel, remotes, openDuelMenu, startDuel, joinRoom, netTick: (dt) => netTick(dt), get mode() { return mode; }, get player() { return player; } };
 
   // Start screen over a camera flight across the meadow (skipped with ?pause for tests).
   const room = cleanRoomId(params.get('raum')) || null;
@@ -420,6 +420,17 @@ if (shot) {
   if (!params.has('pause')) {
     mode = 'menu';
     hud.visible = false;
+    // Music from the first moment: browsers only let it sound after the first click or key
+    // press, so it starts right away where allowed and otherwise with the first touch.
+    audio.unlock();
+    audio.play('welt');
+    const wake = () => {
+      audio.unlock();
+      removeEventListener('pointerdown', wake, true);
+      removeEventListener('keydown', wake, true);
+    };
+    addEventListener('pointerdown', wake, true);
+    addEventListener('keydown', wake, true);
     startMenu({ color, onColor: setColor, name, room }).then((choice) => {
       try {
         localStorage.setItem('aero-name', choice.name);
@@ -427,7 +438,7 @@ if (shot) {
       mode = 'play';
       hud.visible = true;
       controls.firstUpdate = true;
-      audio.play('wiese');
+      audio.play('welt');
       if (choice.room) joinRoom(choice.room, choice.name);
     });
   } else if (room) {

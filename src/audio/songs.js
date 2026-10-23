@@ -260,6 +260,167 @@ function duell(mix) {
   return { seconds: bars * 4 * spb };
 }
 
+// ---------- "Brise": bossa nova breeze for the meadow (100 BPM, D major) ----------
+
+const BRISE_CHORDS = [
+  { root: 38, voicing: [54, 57, 61, 64] }, // Dmaj9
+  { root: 35, voicing: [50, 54, 57, 61] }, // Bm9
+  { root: 40, voicing: [55, 59, 62, 66] }, // Em9
+  { root: 45, voicing: [55, 59, 61, 66] }, // A13
+  { root: 43, voicing: [59, 62, 66, 69] }, // Gmaj9
+  { root: 42, voicing: [57, 61, 64, 66] }, // F#m7
+  { root: 40, voicing: [55, 59, 62, 66] }, // Em9
+  { root: 45, voicing: [55, 59, 62, 64] }, // A9sus
+];
+
+const BRISE_MELODY = [
+  [0, 0, 78, 1.5], [0, 1.5, 76, 0.5], [0, 2, 74, 1], [0, 3, 73, 1],
+  [1, 0, 74, 0.5], [1, 0.5, 76, 0.5], [1, 1, 78, 1], [1, 2, 81, 2],
+  [2, 0, 79, 1.5], [2, 1.5, 78, 0.5], [2, 2, 76, 1], [2, 3, 74, 0.5], [2, 3.5, 71, 0.5],
+  [3, 0, 73, 1.5], [3, 1.5, 76, 0.5], [3, 2, 78, 2],
+  [4, 0, 81, 1], [4, 1, 79, 0.5], [4, 1.5, 78, 1], [4, 2.5, 76, 0.5], [4, 3, 74, 1],
+  [5, 0, 73, 1.5], [5, 1.5, 76, 0.5], [5, 2, 81, 1], [5, 3, 78, 1],
+  [6, 0, 79, 0.5], [6, 0.5, 78, 0.5], [6, 1, 76, 1], [6, 2, 74, 0.5], [6, 2.5, 76, 0.5], [6, 3, 78, 1],
+  [7, 0, 76, 2], [7, 2, 74, 0.5], [7, 2.5, 76, 0.5], [7, 3, 69, 1],
+];
+
+function brise(mix) {
+  const spb = 60 / 100;
+  const ch = {
+    guitar: mix.channel({ gain: 0.8, pan: -0.25, reverb: 0.3 }),
+    keys: mix.channel({ gain: 0.6, pan: 0.2, reverb: 0.35 }),
+    lead: mix.channel({ gain: 0.85, pan: 0.1, reverb: 0.4, delay: 0.22 }),
+    bells: mix.channel({ gain: 0.45, pan: 0.35, reverb: 0.45, delay: 0.3 }),
+    pad: mix.channel({ gain: 0.55, reverb: 0.5 }),
+    bass: mix.channel({ gain: 0.95 }),
+    drums: mix.channel({ gain: 0.65, reverb: 0.12 }),
+    fx: mix.channel({ gain: 0.5, pan: -0.4, reverb: 0.6, delay: 0.3 }),
+  };
+  const bars = 40;
+  for (let bar = 0; bar < bars; bar++) {
+    // The 4-bar intro plays the second half of the progression, so every melody starts on Dmaj9.
+    const c = BRISE_CHORDS[(bar + 4) % 8];
+    const next = BRISE_CHORDS[(bar + 5) % 8];
+    const section = bar < 4 ? 'intro' : bar < 12 ? 'A' : bar < 20 ? 'B' : bar < 28 ? 'A2' : bar < 36 ? 'B2' : 'outro';
+    const full = section !== 'intro' && section !== 'outro';
+
+    // Soft nylon-string comping in the bossa rhythm.
+    for (const [b, len, v] of [[0, 0.6, 0.5], [0.75, 0.3, 0.32], [1.5, 0.5, 0.42], [2.5, 0.4, 0.4], [3.25, 0.5, 0.36]]) {
+      c.voicing.forEach((n, i) => pluck(ch.guitar, at(spb, bar, b) + i * 0.012, n, len * spb, v, { cutoff: 2600 }));
+    }
+    pad(ch.pad, at(spb, bar, 0), c.voicing[0] + 12, 4 * spb, full ? 0.35 : 0.55);
+    pad(ch.pad, at(spb, bar, 0), c.voicing[3] + 12, 4 * spb, full ? 0.3 : 0.5);
+
+    // Glassy bells answer every second bar.
+    if (section === 'intro' || section === 'B' || section === 'B2' || section === 'outro') {
+      const tones = c.voicing.map((n) => n + 24);
+      for (let i = 0; i < 8; i++) bell(ch.bells, at(spb, bar, 2 + i / 4), tones[(i * 3) % 4], 0.3 * spb, bar % 2 ? 0.3 : 0.2);
+    }
+
+    if (full) {
+      // Bossa bass: root, fifth on the "and" of 2 and on 3, approach into the next chord.
+      upright(ch.bass, at(spb, bar, 0), c.root, 1.4 * spb, 0.85);
+      upright(ch.bass, at(spb, bar, 1.5), c.root + 7, 0.45 * spb, 0.6);
+      upright(ch.bass, at(spb, bar, 2), c.root + 7, 1.3 * spb, 0.7);
+      upright(ch.bass, at(spb, bar, 3.5), next.root + (next.root > c.root ? -1 : 1), 0.45 * spb, 0.55);
+      // Electric piano adds warmth in the second half.
+      if (section === 'A2' || section === 'B2') for (const n of c.voicing) epiano(ch.keys, at(spb, bar, 0), n + 12, 1.8 * spb, 0.3);
+      // Kick on 1 and 3, a rim-like click on the clave, shaker 16ths.
+      kick(ch.drums, at(spb, bar, 0), 0.6);
+      kick(ch.drums, at(spb, bar, 2), 0.45);
+      for (const b of bar % 2 ? [1, 2] : [0, 1.5, 3]) snare(ch.drums, at(spb, bar, b), 0.32, { brushed: true });
+      for (let i = 0; i < 16; i++) shaker(ch.drums, at(spb, bar, i / 4), i % 2 ? 0.4 : 0.22);
+    } else {
+      for (let i = 0; i < 8; i++) shaker(ch.drums, at(spb, bar, i / 2), 0.2);
+      if (bar % 2) droplet(ch.fx, at(spb, bar, 3.25), 88 + (bar % 3) * 2, 0.45);
+    }
+  }
+  melody(vibes, ch.lead, BRISE_MELODY, spb, 4, { vel: 0.72 });
+  melody(whistle, ch.lead, BRISE_MELODY, spb, 12, { vel: 0.7 });
+  melody(bell, ch.bells, BRISE_MELODY, spb, 12, { vel: 0.25, transpose: 12 });
+  melody(marimba, ch.lead, BRISE_MELODY, spb, 20, { vel: 0.75 });
+  melody(vibes, ch.lead, BRISE_MELODY, spb, 20, { vel: 0.4, transpose: 12 });
+  melody(whistle, ch.lead, BRISE_MELODY, spb, 28, { vel: 0.75 });
+  melody(marimba, ch.lead, BRISE_MELODY, spb, 28, { vel: 0.45, transpose: -12 });
+  return { seconds: bars * 4 * spb };
+}
+
+// ---------- "Himmel": slow, floating sky theme (84 BPM, B-flat major) ----------
+
+const HIMMEL_CHORDS = [
+  { root: 46, voicing: [57, 60, 62, 65] }, // Bbmaj9
+  { root: 43, voicing: [58, 62, 65, 69] }, // Gm9
+  { root: 51, voicing: [55, 58, 62, 69] }, // Ebmaj9#11
+  { root: 53, voicing: [57, 60, 62, 67] }, // F6/9
+  { root: 50, voicing: [57, 60, 62, 65] }, // Dm7
+  { root: 43, voicing: [58, 62, 65, 69] }, // Gm9
+  { root: 51, voicing: [55, 58, 62, 65] }, // Ebmaj9
+  { root: 53, voicing: [58, 62, 63, 67] }, // F13sus
+];
+
+const HIMMEL_MELODY = [
+  [0, 0, 77, 1], [0, 1, 81, 1], [0, 2, 82, 1.5], [0, 3.5, 81, 0.5],
+  [1, 0, 79, 2], [1, 2, 77, 1], [1, 3, 74, 1],
+  [2, 0, 75, 1], [2, 1, 79, 1], [2, 2, 81, 1], [2, 3, 82, 1],
+  [3, 0, 84, 2], [3, 2, 81, 1], [3, 3, 79, 1],
+  [4, 0, 77, 1.5], [4, 1.5, 74, 0.5], [4, 2, 72, 1], [4, 3, 74, 1],
+  [5, 0, 70, 1], [5, 1, 74, 1], [5, 2, 77, 1], [5, 3, 81, 1],
+  [6, 0, 79, 2], [6, 2, 82, 1], [6, 3, 79, 0.5], [6, 3.5, 77, 0.5],
+  [7, 0, 75, 3], [7, 3, 77, 1],
+];
+
+function himmel(mix) {
+  const spb = 60 / 84;
+  const ch = {
+    pad: mix.channel({ gain: 0.85, reverb: 0.6 }),
+    bells: mix.channel({ gain: 0.5, pan: -0.3, reverb: 0.55, delay: 0.4 }),
+    keys: mix.channel({ gain: 0.7, pan: 0.2, reverb: 0.45 }),
+    lead: mix.channel({ gain: 0.85, pan: 0.05, reverb: 0.5, delay: 0.3 }),
+    bass: mix.channel({ gain: 0.85 }),
+    drums: mix.channel({ gain: 0.6, reverb: 0.2 }),
+    fx: mix.channel({ gain: 0.55, pan: 0.4, reverb: 0.7, delay: 0.35 }),
+  };
+  const bars = 36;
+  for (let bar = 0; bar < bars; bar++) {
+    const c = HIMMEL_CHORDS[(bar + 4) % 8];
+    const section = bar < 4 ? 'intro' : bar < 12 ? 'A' : bar < 20 ? 'B' : bar < 28 ? 'C' : 'outro';
+    const full = section === 'B' || section === 'C';
+
+    // Wide, slow pads: the clouds.
+    for (const n of c.voicing) pad(ch.pad, at(spb, bar, 0), n, 4 * spb, 0.5, { bright: section === 'C' ? 2600 : 1500 });
+    pad(ch.pad, at(spb, bar, 0), c.root - 12 + 24, 4 * spb, 0.35);
+    // Rising bell arpeggio in eighths, an octave higher every other bar.
+    const tones = c.voicing.map((n) => n + 12 + (bar % 2 ? 12 : 0));
+    for (let i = 0; i < 8; i++) bell(ch.bells, at(spb, bar, i / 2), tones[i % 4], 0.45 * spb, i % 4 === 0 ? 0.32 : 0.2);
+
+    if (section !== 'intro') {
+      bass(ch.bass, at(spb, bar, 0), c.root, 2.6 * spb, 0.75);
+      bass(ch.bass, at(spb, bar, 3), c.root + 7, 0.9 * spb, 0.5);
+      // Gentle electric piano on 1 and the "and" of 2.
+      for (const n of c.voicing) {
+        epiano(ch.keys, at(spb, bar, 0), n, 1.4 * spb, 0.38);
+        epiano(ch.keys, at(spb, bar, 2.5), n, 1.2 * spb, 0.28);
+      }
+    }
+    if (full) {
+      // Half-time groove.
+      kick(ch.drums, at(spb, bar, 0), 0.65);
+      kick(ch.drums, at(spb, bar, 1.5), 0.35);
+      snare(ch.drums, at(spb, bar, 2), 0.5, { brushed: true });
+      for (let i = 0; i < 8; i++) hat(ch.drums, at(spb, bar, i / 2), i % 2 ? 0.22 : 0.12);
+      if (section === 'C') for (let i = 0; i < 8; i++) shaker(ch.drums, at(spb, bar, i / 2 + 0.25), 0.25);
+    }
+    if (bar % 2 === 0) droplet(ch.fx, at(spb, bar, 3.5), 89 + (bar % 4), 0.4);
+  }
+  melody(marimba, ch.lead, HIMMEL_MELODY, spb, 4, { vel: 0.7 });
+  melody(vibes, ch.lead, HIMMEL_MELODY, spb, 12, { vel: 0.72 });
+  melody(bell, ch.bells, HIMMEL_MELODY, spb, 12, { vel: 0.28, transpose: 12 });
+  melody(whistle, ch.lead, HIMMEL_MELODY, spb, 20, { vel: 0.72 });
+  melody(vibes, ch.lead, HIMMEL_MELODY, spb, 20, { vel: 0.35, transpose: -12 });
+  melody(bell, ch.bells, HIMMEL_MELODY, spb, 28, { vel: 0.3, transpose: 12 });
+  return { seconds: bars * 4 * spb };
+}
+
 // ---------- Jingles ----------
 
 function sieg(mix) {
@@ -295,6 +456,8 @@ function niederlage(mix) {
 
 export const SONGS = {
   wiese: { render: wiese, mixer: { delayTime: (60 / 92) * 0.75 } },
+  brise: { render: brise, mixer: { delayTime: (60 / 100) * 0.75 } },
+  himmel: { render: himmel, mixer: { delayTime: (60 / 84) * 0.75, reverbSeconds: 3.6 } },
   lobby: { render: lobby, mixer: { delayTime: (60 / 112) * 0.75, reverbSeconds: 2.4 } },
   duell: { render: duell, mixer: { delayTime: (60 / 128) * 0.75, reverbSeconds: 2.2 } },
   sieg: { render: sieg, mixer: { delayTime: 0.25 } },

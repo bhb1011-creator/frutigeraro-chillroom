@@ -8,7 +8,7 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const OUT = fileURLToPath(new URL('../public/assets/music/', import.meta.url));
-const NAMES = (process.argv[2] ?? 'wiese,lobby,duell,sieg,niederlage').split(',');
+const NAMES = (process.argv[2] ?? 'wiese,brise,himmel,lobby,duell,sieg,niederlage').split(',');
 
 await mkdir(OUT, { recursive: true });
 const server = await createServer({ server: { port: 5194 }, logLevel: 'error' });
